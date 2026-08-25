@@ -1,0 +1,232 @@
+from typing import List, Optional
+from datetime import datetime, timezone
+from sqlalchemy.orm import Session, joinedload
+
+from backend.models import (
+    UserModel,
+    ExerciseModel,
+    WorkoutSessionModel,
+    FormLogModel,
+    AICoachingLogModel
+)
+from backend.schemas import UserCreate, WorkoutSessionCreate
+from backend.services.ai_service import ai_service
+from assistant import WorkoutSessionData, UserProfile
+
+class WorkoutService:
+    """
+    Business logic & persistence orchestration for Users, Exercises, Workouts, and AI Coaching.
+    """
+
+    # --- User Operations ---
+    @staticmethod
+    def create_user(db: Session, user_in: UserCreate) -> UserModel:
+        existing = db.query(UserModel).filter(UserModel.email == user_in.email).first()
+        if existing:
+            return existing
+
+        user = UserModel(
+            name=user_in.name,
+            email=user_in.email,
+            fitness_goal=user_in.fitness_goal or "General Fitness",
+            experience_level=user_in.experience_level or "Beginner",
+            age=user_in.age,
+            height=user_in.height,
+            weight=user_in.weight,
+            gender=user_in.gender
+        )
+        if user_in.password:
+            from backend.utils.auth import hash_password
+            user.password_hash = hash_password(user_in.password)
+
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+        return user
+
+    @staticmethod
+    def register_user(db: Session, reg_in) -> UserModel:
+        existing = db.query(UserModel).filter(UserModel.email == reg_in.email).first()
+        if existing:
+            raise ValueError(f"An account with email '{reg_in.email}' already exists.")
+
+        from backend.utils.auth import hash_password
+        user = UserModel(
+            name=reg_in.name,
+            email=reg_in.email,
+            password_hash=hash_password(reg_in.password),
+            fitness_goal=reg_in.fitness_goal or "General Fitness",
+            experience_level=reg_in.experience_level or "Beginner",
+            age=reg_in.age,
+            height=reg_in.height,
+            weight=reg_in.weight,
+            gender=reg_in.gender
+        )
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+        return user
+
+    @staticmethod
+    def authenticate_user(db: Session, email: str, password: str) -> Optional[UserModel]:
+        user = db.query(UserModel).filter(UserModel.email == email).first()
+        if not user or not user.password_hash:
+            return None
+        from backend.utils.auth import verify_password
+        if verify_password(password, user.password_hash):
+            return user
+        return None
+
+    @staticmethod
+    def update_user_profile(db: Session, user_id: int, profile_in) -> UserModel:
+        user = db.query(UserModel).filter(UserModel.id == user_id).first()
+        if not user:
+            raise ValueError(f"User with ID {user_id} not found.")
+
+        if profile_in.name is not None:
+            user.name = profile_in.name
+        if profile_in.fitness_goal is not None:
+            user.fitness_goal = profile_in.fitness_goal
+        if profile_in.experience_level is not None:
+            user.experience_level = profile_in.experience_level
+        if profile_in.age is not None:
+            user.age = profile_in.age
+        if profile_in.height is not None:
+            user.height = profile_in.height
+        if profile_in.weight is not None:
+            user.weight = profile_in.weight
+        if profile_in.gender is not None:
+            user.gender = profile_in.gender
+
+        db.commit()
+        db.refresh(user)
+        return user
+
+    @staticmethod
+    def get_user(db: Session, user_id: int) -> Optional[UserModel]:
+        return db.query(UserModel).filter(UserModel.id == user_id).first()
+
+    @staticmethod
+    def get_users(db: Session) -> List[UserModel]:
+        return db.query(UserModel).all()
+
+
+    # --- Exercise Catalogue Operations ---
+    @staticmethod
+    def get_exercises(db: Session) -> List[ExerciseModel]:
+        return db.query(ExerciseModel).all()
+
+    @staticmethod
+    def get_exercise(db: Session, exercise_id: int) -> Optional[ExerciseModel]:
+        return db.query(ExerciseModel).filter(ExerciseModel.id == exercise_id).first()
+
+    @staticmethod
+    def get_exercise_by_name(db: Session, name: str) -> Optional[ExerciseModel]:
+        return db.query(ExerciseModel).filter(ExerciseModel.name == name).first()
+
+    # --- Workout Session & AI Orchestration ---
+    @staticmethod
+    def create_workout_session(
+        db: Session,
+        session_in: WorkoutSessionCreate,
+        form_scores_history: Optional[List[int]] = None,
+        feedback_events: Optional[List[str]] = None
+    ) -> WorkoutSessionModel:
+        user = db.query(UserModel).filter(UserModel.id == session_in.user_id).first()
+        exercise = db.query(ExerciseModel).filter(ExerciseModel.id == session_in.exercise_id).first()
+
+        if not user:
+            raise ValueError(f"User with ID {session_in.user_id} not found.")
+        if not exercise:
+            raise ValueError(f"Exercise with ID {session_in.exercise_id} not found.")
+
+        actual_form_score = 0.0 if session_in.repetitions == 0 else session_in.form_score
+
+        # 1. Create WorkoutSession Record
+        workout_session = WorkoutSessionModel(
+            user_id=session_in.user_id,
+            exercise_id=session_in.exercise_id,
+            repetitions=session_in.repetitions,
+            duration_sec=session_in.duration_sec,
+            form_score=actual_form_score,
+            started_at=datetime.now(timezone.utc),
+            completed_at=session_in.completed_at or datetime.now(timezone.utc)
+        )
+        db.add(workout_session)
+        db.flush()  # Generate workout_session.id
+
+        # 2. Add Form Logs if provided
+        events = feedback_events or []
+        for event in events:
+            form_log = FormLogModel(
+                workout_session_id=workout_session.id,
+                form_score=actual_form_score,
+                feedback=event
+            )
+            db.add(form_log)
+
+        # 3. Build Telemetry Payload for Member 4 AI Assistant
+        telemetry = WorkoutSessionData(
+            exercise_name=exercise.name,
+            rep_count=session_in.repetitions,
+            duration_sec=session_in.duration_sec,
+            form_score=actual_form_score,
+            form_scores_history=form_scores_history or [],
+            feedback_events=events
+        )
+
+
+        user_profile = UserProfile(
+            user_id=str(user.id),
+            fitness_goal=user.fitness_goal or "General Fitness",
+            experience_level=user.experience_level or "Intermediate"
+        )
+
+        # 4. Trigger AI Assistant & Store Coaching Log
+        ai_response_text, provider = ai_service.generate_coaching_for_session(telemetry, user_profile)
+        coaching_log = AICoachingLogModel(
+            workout_session_id=workout_session.id,
+            response=ai_response_text,
+            provider=provider
+        )
+        db.add(coaching_log)
+
+        # 5. Automatically evaluate & award gamification achievements for valid workouts (reps >= 1)
+        if session_in.repetitions >= 1:
+            from backend.services.gamification_service import gamification_service
+            gamification_service.evaluate_and_award_achievements(db, user.id)
+
+        # Commit transaction
+        db.commit()
+        db.refresh(workout_session)
+        return workout_session
+
+
+    @staticmethod
+    def get_workout_session(db: Session, session_id: int) -> Optional[WorkoutSessionModel]:
+        return (
+            db.query(WorkoutSessionModel)
+            .options(
+                joinedload(WorkoutSessionModel.user),
+                joinedload(WorkoutSessionModel.exercise),
+                joinedload(WorkoutSessionModel.form_logs),
+                joinedload(WorkoutSessionModel.ai_coaching_logs)
+            )
+            .filter(WorkoutSessionModel.id == session_id)
+            .first()
+        )
+
+    @staticmethod
+    def get_user_workouts(db: Session, user_id: int) -> List[WorkoutSessionModel]:
+        return (
+            db.query(WorkoutSessionModel)
+            .options(
+                joinedload(WorkoutSessionModel.exercise),
+                joinedload(WorkoutSessionModel.ai_coaching_logs)
+            )
+            .filter(WorkoutSessionModel.user_id == user_id)
+            .order_by(WorkoutSessionModel.started_at.desc())
+            .all()
+        )
+
+workout_service = WorkoutService()
