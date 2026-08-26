@@ -26,16 +26,130 @@ function initAuthUI() {
       tab.classList.add('active');
 
       const formType = tab.getAttribute('data-auth-form');
-      if (formType === 'login') {
-        document.getElementById('loginFormContainer').style.display = 'block';
-        document.getElementById('registerFormContainer').style.display = 'none';
-      } else {
-        document.getElementById('loginFormContainer').style.display = 'none';
-        document.getElementById('registerFormContainer').style.display = 'block';
-      }
+      showAuthFormContainer(formType === 'login' ? 'loginFormContainer' : 'registerFormContainer');
       clearAuthAlerts();
     });
   });
+
+  // Forgot Password Link Click
+  const forgotPassLink = document.getElementById('forgotPassLink');
+  if (forgotPassLink) {
+    forgotPassLink.addEventListener('click', (e) => {
+      e.preventDefault();
+      clearAuthAlerts();
+      showAuthFormContainer('forgotPasswordFormContainer');
+    });
+  }
+
+  // Back to Login Links Click
+  const backToLoginLinks = document.querySelectorAll('.back-to-login-link');
+  backToLoginLinks.forEach(link => {
+    link.addEventListener('click', (e) => {
+      e.preventDefault();
+      clearAuthAlerts();
+      const loginTab = document.querySelector('.auth-tab-btn[data-auth-form="login"]');
+      if (loginTab) {
+        authTabs.forEach(t => t.classList.remove('active'));
+        loginTab.classList.add('active');
+      }
+      showAuthFormContainer('loginFormContainer');
+    });
+  });
+
+  // Forgot Password Form Submission
+  const forgotPasswordForm = document.getElementById('forgotPasswordForm');
+  if (forgotPasswordForm) {
+    forgotPasswordForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      clearAuthAlerts();
+
+      const email = document.getElementById('forgotEmail').value.trim();
+      if (!email) {
+        showAuthError('Please enter a valid email address.');
+        return;
+      }
+
+      setAuthBtnLoading('forgotBtn', true, 'Sending...');
+      try {
+        const response = await fetch(`${AUTH_API_BASE}/forgot-password`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email })
+        });
+
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data.detail || 'Failed to process password reset request.');
+        }
+
+        showAuthSuccess(data.message || 'If an account exists for this email, password reset instructions have been sent.');
+      } catch (err) {
+        showAuthError(err.message);
+      } finally {
+        setAuthBtnLoading('forgotBtn', false, 'Send Reset Link');
+      }
+    });
+  }
+
+  // Reset Password Form Submission
+  const resetPasswordForm = document.getElementById('resetPasswordForm');
+  if (resetPasswordForm) {
+    resetPasswordForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      clearAuthAlerts();
+
+      const token = document.getElementById('resetTokenInput').value.trim();
+      const newPassword = document.getElementById('newPassword').value;
+      const confirmNewPassword = document.getElementById('confirmNewPassword').value;
+
+      if (!token) {
+        showAuthError('This password reset link is invalid or has expired. Please request a new one.');
+        return;
+      }
+
+      if (!newPassword || newPassword.length < 6) {
+        showAuthError('Password must be at least 6 characters long.');
+        return;
+      }
+
+      if (newPassword !== confirmNewPassword) {
+        showAuthError('Passwords do not match. Please re-enter your new password.');
+        return;
+      }
+
+      setAuthBtnLoading('resetBtn', true, 'Updating...');
+      try {
+        const response = await fetch(`${AUTH_API_BASE}/reset-password`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token, new_password: newPassword })
+        });
+
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data.detail || 'This password reset link is invalid or has expired. Please request a new one.');
+        }
+
+        showAuthSuccess('Your password has been successfully reset. Please log in with your new password.');
+        setTimeout(() => {
+          showAuthFormContainer('loginFormContainer');
+        }, 2500);
+      } catch (err) {
+        showAuthError(err.message);
+      } finally {
+        setAuthBtnLoading('resetBtn', false, 'Reset Password');
+      }
+    });
+  }
+
+  // Check URL query parameters for reset password token (?token=...)
+  const urlParams = new URLSearchParams(window.location.search);
+  const resetToken = urlParams.get('token');
+  if (resetToken) {
+    document.getElementById('resetTokenInput').value = resetToken;
+    showAuthFormContainer('resetPasswordFormContainer');
+  }
+
 
   // Login Form Submission
   const loginForm = document.getElementById('loginForm');
@@ -392,10 +506,28 @@ function getAuthenticatedUserProfile() {
 }
 
 /* Helpers */
+function showAuthFormContainer(containerId) {
+  const containers = ['loginFormContainer', 'registerFormContainer', 'forgotPasswordFormContainer', 'resetPasswordFormContainer'];
+  containers.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = id === containerId ? 'block' : 'none';
+  });
+}
+
 function showAuthError(msg) {
   const alertBox = document.getElementById('authAlertBox');
   if (alertBox) {
+    alertBox.className = 'auth-alert-box alert-danger';
     alertBox.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> ${escapeHTML(msg)}`;
+    alertBox.style.display = 'block';
+  }
+}
+
+function showAuthSuccess(msg) {
+  const alertBox = document.getElementById('authAlertBox');
+  if (alertBox) {
+    alertBox.className = 'auth-alert-box alert-success';
+    alertBox.innerHTML = `<i class="fa-solid fa-circle-check"></i> ${escapeHTML(msg)}`;
     alertBox.style.display = 'block';
   }
 }
@@ -408,14 +540,14 @@ function clearAuthAlerts() {
   }
 }
 
-function setAuthBtnLoading(btnId, isLoading) {
+function setAuthBtnLoading(btnId, isLoading, defaultText = 'Submit') {
   const btn = document.getElementById(btnId);
   if (!btn) return;
   btn.disabled = isLoading;
   if (isLoading) {
     btn.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin"></i> Please wait...`;
   } else {
-    btn.innerHTML = btnId === 'loginBtn' ? 'Login' : 'Create Account';
+    btn.innerHTML = defaultText;
   }
 }
 
@@ -423,3 +555,4 @@ function escapeHTML(str) {
   if (!str) return '';
   return String(str).replace(/[&<>'"]/g, tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag));
 }
+

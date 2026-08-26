@@ -18,6 +18,16 @@ class Settings(BaseSettings):
     GEMINI_API_KEY: Optional[str] = None
     GOOGLE_API_KEY: Optional[str] = None
 
+    # Email & SMTP Configuration
+    EMAIL_PROVIDER: str = "development"
+    SMTP_HOST: str = "smtp.gmail.com"
+    SMTP_PORT: int = 587
+    SMTP_USERNAME: Optional[str] = None
+    SMTP_PASSWORD: Optional[str] = None
+    EMAIL_FROM: Optional[str] = None
+    FITQUEST_FRONTEND_URL: str = "http://127.0.0.1:8080"
+
+
     # CORS Configuration
     CORS_ORIGINS: list[str] = [
         "http://localhost",

@@ -8,7 +8,11 @@ from backend.schemas.user import (
     UserLogin,
     UserProfileUpdate,
     UserResponse,
-    AuthTokenResponse
+    AuthTokenResponse,
+    ForgotPasswordRequest,
+    ResetPasswordRequest,
+    ForgotPasswordResponse,
+    ResetPasswordResponse
 )
 from backend.services.workout_service import workout_service
 from backend.utils.auth import create_access_token, verify_access_token
@@ -71,6 +75,32 @@ def login(payload: UserLogin, db: Session = Depends(get_db)):
         user=UserResponse.model_validate(user)
     )
 
+@router.post("/forgot-password", response_model=ForgotPasswordResponse, summary="Request Password Reset Link")
+def forgot_password(payload: ForgotPasswordRequest, db: Session = Depends(get_db)):
+    """
+    Initiates password reset process for given email.
+    Always returns the exact same generic message regardless of whether the email exists to prevent enumeration.
+    """
+    workout_service.create_password_reset_token(db, payload.email)
+    return ForgotPasswordResponse(
+        message="If an account exists for this email, password reset instructions have been sent."
+    )
+
+@router.post("/reset-password", response_model=ResetPasswordResponse, summary="Reset Account Password via Token")
+def reset_password(payload: ResetPasswordRequest, db: Session = Depends(get_db)):
+    """
+    Resets account password using a valid, non-expired, single-use password reset token.
+    """
+    try:
+        workout_service.reset_password_with_token(db, payload.token, payload.new_password)
+        return ResetPasswordResponse(
+            message="Your password has been successfully reset. Please log in with your new password."
+        )
+    except ValueError as err:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(err))
+    except Exception as err:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Password reset failed: {err}")
+
 @router.get("/me", response_model=UserResponse, summary="Get Current Authenticated User Profile")
 def get_me(user_id: int = Depends(get_current_user_id), db: Session = Depends(get_db)):
     """
@@ -104,3 +134,4 @@ def update_profile(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(err))
     except Exception as err:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to update profile: {err}")
+

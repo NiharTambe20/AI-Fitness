@@ -56,3 +56,17 @@ class AuthTokenResponse(BaseModel):
     token_type: str = "bearer"
     user: UserResponse
 
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+class ResetPasswordRequest(BaseModel):
+    token: str
+    new_password: str
+
+class ForgotPasswordResponse(BaseModel):
+    message: str = "If an account exists for this email, password reset instructions have been sent."
+
+class ResetPasswordResponse(BaseModel):
+    message: str = "Your password has been successfully reset. Please log in with your new password."
+
+

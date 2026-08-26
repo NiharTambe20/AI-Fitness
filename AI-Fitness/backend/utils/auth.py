@@ -76,3 +76,17 @@ def verify_access_token(token: str) -> Optional[int]:
         return int(payload["sub"])
     except Exception:
         return None
+
+def generate_reset_token() -> str:
+    """
+    Generates a cryptographically secure 32-byte URL-safe random string for password reset.
+    """
+    import secrets
+    return secrets.token_urlsafe(32)
+
+def hash_reset_token(token: str) -> str:
+    """
+    Computes SHA-256 hex digest of a password reset token for safe storage in the database.
+    """
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()
+

@@ -1,6 +1,8 @@
+import os
 from typing import List, Optional
 from datetime import datetime, timezone
 from sqlalchemy.orm import Session, joinedload
+
 
 from backend.models import (
     UserModel,
@@ -229,4 +231,98 @@ class WorkoutService:
             .all()
         )
 
+    # --- Password Reset Operations ---
+    @staticmethod
+    def create_password_reset_token(db: Session, email: str) -> Optional[str]:
+        """
+        Creates a temporary single-use password reset token for the given email address.
+        Stores only the SHA-256 hash in the database and outputs development reset link.
+        """
+        if not email or not email.strip():
+            return None
+
+        clean_email = email.strip().lower()
+        from sqlalchemy import func
+        user = db.query(UserModel).filter(func.lower(UserModel.email) == clean_email).first()
+        if not user:
+            # Do NOT reveal user absence for security (anti-enumeration)
+            return None
+
+        from datetime import timedelta
+        from backend.models import PasswordResetTokenModel
+        from backend.utils.auth import generate_reset_token, hash_reset_token
+
+        raw_token = generate_reset_token()
+        token_hash = hash_reset_token(raw_token)
+        expires_at = datetime.now(timezone.utc) + timedelta(minutes=20)
+
+        reset_obj = PasswordResetTokenModel(
+            user_id=user.id,
+            token_hash=token_hash,
+            expires_at=expires_at,
+            used=False
+        )
+        db.add(reset_obj)
+        db.commit()
+
+        # Dispatch email via EmailService (handles SMTP or Development mode based on settings/env)
+        from backend.config import settings
+        from backend.services.email_service import email_service
+
+        frontend_url = os.environ.get("FITQUEST_FRONTEND_URL", settings.FITQUEST_FRONTEND_URL).rstrip("/")
+        dev_link = f"{frontend_url}/?token={raw_token}"
+
+        email_service.send_password_reset_email(user.email, dev_link)
+
+        return raw_token
+
+
+
+    @staticmethod
+    def reset_password_with_token(db: Session, token: str, new_password: str) -> bool:
+        """
+        Validates reset token, checks expiration and single-use status, and updates user password_hash.
+        """
+        if not new_password or len(new_password) < 6:
+            raise ValueError("Password must be at least 6 characters long.")
+
+        if not token or not token.strip():
+            raise ValueError("This password reset link is invalid or has expired. Please request a new one.")
+
+        from backend.models import PasswordResetTokenModel
+        from backend.utils.auth import hash_reset_token, hash_password
+
+        token_hash = hash_reset_token(token.strip())
+        reset_obj = (
+            db.query(PasswordResetTokenModel)
+            .filter(
+                PasswordResetTokenModel.token_hash == token_hash,
+                PasswordResetTokenModel.used == False
+            )
+            .first()
+        )
+
+        if not reset_obj:
+            raise ValueError("This password reset link is invalid or has expired. Please request a new one.")
+
+        # Check expiration
+        now = datetime.now(timezone.utc)
+        expires_at = reset_obj.expires_at
+        if expires_at.tzinfo is None:
+            expires_at = expires_at.replace(tzinfo=timezone.utc)
+
+        if expires_at < now:
+            raise ValueError("This password reset link is invalid or has expired. Please request a new one.")
+
+        # Update user password
+        user = db.query(UserModel).filter(UserModel.id == reset_obj.user_id).first()
+        if not user:
+            raise ValueError("This password reset link is invalid or has expired. Please request a new one.")
+
+        user.password_hash = hash_password(new_password)
+        reset_obj.used = True
+        db.commit()
+        return True
+
 workout_service = WorkoutService()
+
