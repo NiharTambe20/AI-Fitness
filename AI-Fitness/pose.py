@@ -78,28 +78,104 @@ class PoseDetector:
 
         h, w, _ = frame.shape
 
-        overlay = frame.copy()
-        cv2.rectangle(overlay, (10, 10), (370, 185), (20, 20, 20), -1)
-        cv2.addWeighted(overlay, 0.7, frame, 0.3, 0, frame)
+        # Balanced responsive card sizing: 220-270px width (approx 34-36% of 640px frame)
+        padding = max(12, int(w * 0.02))
+        card_w = min(270, max(220, int(w * 0.36)))
 
-        cv2.putText(frame, f"EXERCISE: {tracker_info['exercise'].upper()}", (20, 35), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 255), 2, cv2.LINE_AA)
-        
-        rep_text = f"REPS: {tracker_info['rep_count']}"
-        cv2.putText(frame, rep_text, (20, 70), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 0), 2, cv2.LINE_AA)
+        # Extract values
+        ex_name = str(tracker_info.get("exercise", "")).upper()
+        reps = tracker_info.get("rep_count", 0)
+        state = str(tracker_info.get("state", "N/A")).upper()
+        angle = tracker_info.get("primary_angle")
+        angle_str = f"{angle:.1f}°" if isinstance(angle, (int, float)) else "N/A"
 
-        state_text = f"STATE: {tracker_info['state']}"
-        state_color = (0, 255, 255) if tracker_info['state'] in ["UP", "STANDING"] else (255, 165, 0)
-        cv2.putText(frame, state_text, (180, 70), cv2.FONT_HERSHEY_SIMPLEX, 0.7, state_color, 2, cv2.LINE_AA)
+        valid = tracker_info.get("valid", True)
+        feedback_code = tracker_info.get("feedback_code", "GOOD_FORM")
+        feedback_detail = tracker_info.get("feedback_detail") or (
+            tracker_info.get("feedback", [""])[0] if tracker_info.get("feedback") else ""
+        )
 
-        angle_str = f"{tracker_info['primary_angle']} deg" if tracker_info.get('primary_angle') is not None else "N/A"
-        cv2.putText(frame, f"Joint Angle: {angle_str}", (20, 105), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (255, 255, 255), 1, cv2.LINE_AA)
-
-        if not tracker_info.get("valid", False):
-            cv2.putText(frame, "STATUS: Body Not Fully Detected", (20, 140), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2, cv2.LINE_AA)
+        # Status text & color
+        if not valid or feedback_code == "LANDMARKS_MISSING":
+            status_text = "STATUS: BODY NOT DETECTED"
+            status_color = (0, 0, 255)      # Red
+        elif feedback_code == "GOOD_FORM":
+            status_text = "STATUS: GOOD FORM"
+            status_color = (0, 255, 128)    # Green
         else:
-            feedback_str = " | ".join(tracker_info["feedback"])
-            form_color = (0, 255, 0) if "GOOD FORM" in feedback_str or "Good" in feedback_str or "Great" in feedback_str else (0, 165, 255)
-            cv2.putText(frame, f"FORM: {feedback_str}", (20, 140), cv2.FONT_HERSHEY_SIMPLEX, 0.5, form_color, 2, cv2.LINE_AA)
+            status_text = "STATUS: FORM ISSUE"
+            status_color = (0, 165, 255)    # Orange
+
+        # 1-2 compact lines of word-wrapped feedback text
+        words = feedback_detail.split()
+        lines = []
+        curr_line = ""
+        max_text_w = card_w - 24
+        font_scale_fb = 0.42
+
+        for word in words:
+            test_line = f"{curr_line} {word}".strip()
+            (tw, _), _ = cv2.getTextSize(test_line, cv2.FONT_HERSHEY_SIMPLEX, font_scale_fb, 1)
+            if tw <= max_text_w:
+                curr_line = test_line
+            else:
+                if curr_line:
+                    lines.append(curr_line)
+                curr_line = word
+        if curr_line:
+            lines.append(curr_line)
+        lines = lines[:2]
+
+        card_h = min(160, 92 + len(lines) * 18)
+
+        card_x1 = padding
+        card_y1 = padding
+        card_x2 = card_x1 + card_w
+        card_y2 = card_y1 + card_h
+
+        # Translucent dark slate card with cyan border
+        overlay = frame.copy()
+        cv2.rectangle(overlay, (card_x1, card_y1), (card_x2, card_y2), (15, 23, 42), -1)
+        cv2.rectangle(overlay, (card_x1, card_y1), (card_x2, card_y2), (0, 242, 254), 1)
+        cv2.addWeighted(overlay, 0.82, frame, 0.18, 0, frame)
+
+        curr_y = card_y1 + 22
+
+        # Line 1: Exercise Title
+        cv2.putText(frame, ex_name, (card_x1 + 12, curr_y),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 242, 254), 1, cv2.LINE_AA)
+        curr_y += 24
+
+        # Line 2: REPS & STATE
+        cv2.putText(frame, f"REPS: {reps}", (card_x1 + 12, curr_y),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.65, (0, 255, 128), 2, cv2.LINE_AA)
+
+        state_color = (0, 242, 254) if state in ["UP", "STANDING", "EXTENDED", "CLOSED", "HOLDING"] else (255, 165, 0)
+        (reps_w, _), _ = cv2.getTextSize(f"REPS: {reps}", cv2.FONT_HERSHEY_SIMPLEX, 0.65, 2)
+        state_x = max(card_x1 + 110, card_x1 + 20 + reps_w)
+        cv2.putText(frame, f"STATE: {state}", (state_x, curr_y),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.48, state_color, 1, cv2.LINE_AA)
+        curr_y += 20
+
+        # Line 3: Joint Angle
+        cv2.putText(frame, f"Angle: {angle_str}", (card_x1 + 12, curr_y),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.42, (200, 200, 200), 1, cv2.LINE_AA)
+        curr_y += 20
+
+        # Line 4: Status Badge
+        cv2.putText(frame, status_text, (card_x1 + 12, curr_y),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.45, status_color, 1, cv2.LINE_AA)
+        curr_y += 20
+
+        # Line 5-6: Actionable Feedback Detail
+        for line in lines:
+            if curr_y <= card_y2 - 6:
+                cv2.putText(frame, line, (card_x1 + 12, curr_y),
+                            cv2.FONT_HERSHEY_SIMPLEX, font_scale_fb, (255, 255, 255), 1, cv2.LINE_AA)
+                curr_y += 18
+
+
+
 
     def start_stream(self, camera_index=0, window_name="AI Fitness Engine"):
         cap = cv2.VideoCapture(camera_index)

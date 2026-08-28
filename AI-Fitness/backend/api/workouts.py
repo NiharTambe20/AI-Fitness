@@ -16,6 +16,10 @@ class WorkoutSessionIngestRequest(BaseModel):
     form_scores_history: Optional[List[int]] = None
     feedback_events: Optional[List[str]] = None
 
+class LiveSessionStartRequest(BaseModel):
+    session_id: str
+    exercise_choice: str = "1"
+
 class LiveFrameProcessRequest(BaseModel):
     session_id: str = "default_session"
     exercise_choice: str = "1"
@@ -24,6 +28,28 @@ class LiveFrameProcessRequest(BaseModel):
 
 class LiveSessionStopRequest(BaseModel):
     session_id: str = "default_session"
+
+@router.post("/live/start-session", summary="Explicitly Start/Reset Live CV Workout Session")
+def start_live_session(payload: LiveSessionStartRequest):
+    """
+    Explicitly starts a fresh live CV session for session_id, purging any prior session state.
+    """
+    try:
+        controller = cv_live_service.start_session(
+            session_id=payload.session_id,
+            exercise_choice=payload.exercise_choice
+        )
+        return {
+            "status": "success",
+            "session_id": payload.session_id,
+            "exercise": controller.tracker.name,
+            "rep_count": controller.tracker.rep_count,
+            "form_score": controller.tracker.get_form_score()
+        }
+    except ValueError as err:
+        raise HTTPException(status_code=400, detail=str(err))
+    except Exception as err:
+        raise HTTPException(status_code=500, detail=f"Failed to start live session: {err}")
 
 @router.post("", response_model=WorkoutSessionResponse, status_code=status.HTTP_201_CREATED, summary="Ingest Workout Session & Generate AI Coaching")
 @router.post("/", response_model=WorkoutSessionResponse, status_code=status.HTTP_201_CREATED, summary="Ingest Workout Session & Generate AI Coaching")

@@ -200,8 +200,8 @@ class WorkoutService:
 
         # Commit transaction
         db.commit()
-        db.refresh(workout_session)
-        return workout_session
+        db.expire_all()
+        return WorkoutService.get_workout_session(db, workout_session.id) or workout_session
 
 
     @staticmethod

@@ -38,6 +38,11 @@ class UserModel(Base):
         back_populates="user",
         cascade="all, delete-orphan"
     )
+    goals = relationship(
+        "UserGoalModel",
+        back_populates="user",
+        cascade="all, delete-orphan"
+    )
 
 
 

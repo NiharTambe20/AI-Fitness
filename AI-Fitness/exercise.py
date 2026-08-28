@@ -15,6 +15,7 @@ class ExerciseController:
     and integrated with Member 4 AI Fitness Assistant.
     """
     def __init__(self, exercise_choice="1"):
+        self.exercise_key = str(exercise_choice).strip()
         self.tracker = ExerciseRegistry.get_tracker(exercise_choice)
         self.start_time = time.time()
         self.end_time = None

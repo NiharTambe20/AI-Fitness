@@ -3,18 +3,122 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>FitQuest — AI Fitness & Pose Analytics Platform</title>
+  <title>FitQuest — Minimal Athletic AI Fitness Platform</title>
   
-  <!-- Modern Typography (Outfit & Inter) -->
+  <!-- Modern Typography (Inter & Space Grotesk) -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@600;700;800&display=swap" rel="stylesheet">
   
   <!-- FontAwesome Icons -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   
   <link rel="stylesheet" href="style.css">
 </head>
+<body>
+  <!-- CINEMATIC 3D LANDING PAGE VIEW -->
+  <section id="landingView" class="landing-view">
+    <!-- LAYER 01: FITQUEST HERO -->
+    <div id="landingLayer1" class="landing-section landing-layer" data-layer="1">
+      <div class="landing-hero-composition">
+        <div class="hero-3d-wordmark-wrapper">
+          <h1 id="hero3DWordmark" class="hero-3d-wordmark"><span id="wordmarkText"></span><span id="wordmarkCursor" class="wordmark-cursor">|</span></h1>
+        </div>
+        <div id="landingTagline" class="landing-tagline">
+          <i class="fa-solid fa-bolt"></i> AI FITNESS PLATFORM
+        </div>
+        <p id="landingSubtitle" class="landing-subtitle">
+          Train smarter. Move better. Get stronger.
+        </p>
+        <div class="landing-cta-container">
+          <button id="enterFitquestBtn" class="btn-landing-enter">
+            ENTER FITQUEST <i class="fa-solid fa-arrow-right"></i>
+          </button>
+        </div>
+      </div>
+      <div class="landing-scroll-hint">
+        <span>SCROLL TO EXPLORE</span>
+        <i class="fa-solid fa-chevron-down"></i>
+      </div>
+    </div>
+
+    <!-- LAYER 02: SEE EVERY REP. -->
+    <div id="landingLayer2" class="landing-section landing-layer" data-layer="2">
+      <div class="landing-layer-content">
+        <div class="layer-number-badge">02 / TELEMETRY</div>
+        <h2 class="landing-layer-title">SEE EVERY REP.</h2>
+        <p class="landing-layer-subtitle">Real-time movement tracking.</p>
+        <div class="abstract-geometry-wrapper">
+          <svg class="abstract-geometry-svg" viewBox="0 0 400 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M20 60 H140 L170 20 L200 100 L230 40 L260 80 L290 60 H380" stroke="#2A2A2A" stroke-width="2" stroke-dasharray="4 4"/>
+            <path d="M140 60 L170 20 L200 100 L230 40 L260 80 L290 60" stroke="#B8FF3D" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+            <circle cx="170" cy="20" r="4" fill="#B8FF3D"/>
+            <circle cx="200" cy="100" r="4" fill="#B8FF3D"/>
+            <circle cx="230" cy="40" r="4" fill="#B8FF3D"/>
+          </svg>
+        </div>
+      </div>
+    </div>
+
+    <!-- LAYER 03: FORM. NOT GUESSWORK. -->
+    <div id="landingLayer3" class="landing-section landing-layer" data-layer="3">
+      <div class="landing-layer-content">
+        <div class="layer-number-badge">03 / BIOMECHANICS</div>
+        <h2 class="landing-layer-title">FORM. NOT GUESSWORK.</h2>
+        <p class="landing-layer-subtitle">Every movement. Measured.</p>
+        <div class="abstract-geometry-wrapper">
+          <svg class="abstract-geometry-svg" viewBox="0 0 300 140" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="150" cy="70" r="60" stroke="#2A2A2A" stroke-width="1.5" stroke-dasharray="6 6"/>
+            <circle cx="150" cy="70" r="40" stroke="#1C1C1C" stroke-width="1.5"/>
+            <path d="M150 10 L150 130 M90 70 L210 70" stroke="#2A2A2A" stroke-width="1.5"/>
+            <path d="M150 70 L192 28" stroke="#B8FF3D" stroke-width="3" stroke-linecap="round"/>
+            <circle cx="192" cy="28" r="5" fill="#B8FF3D"/>
+          </svg>
+        </div>
+      </div>
+    </div>
+
+    <!-- LAYER 04: YOUR COACH. IN REAL TIME. -->
+    <div id="landingLayer4" class="landing-section landing-layer" data-layer="4">
+      <div class="landing-layer-content">
+        <div class="layer-number-badge">04 / INTELLIGENCE</div>
+        <h2 class="landing-layer-title">YOUR COACH. IN REAL TIME.</h2>
+        <p class="landing-layer-subtitle">Feedback when it matters.</p>
+        <div class="abstract-geometry-wrapper">
+          <svg class="abstract-geometry-svg" viewBox="0 0 320 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect x="20" y="38" width="8" height="4" fill="#2A2A2A"/>
+            <rect x="36" y="32" width="8" height="16" fill="#2A2A2A"/>
+            <rect x="52" y="24" width="8" height="32" fill="#B8FF3D"/>
+            <rect x="68" y="16" width="8" height="48" fill="#B8FF3D"/>
+            <rect x="84" y="28" width="8" height="24" fill="#2A2A2A"/>
+            <rect x="100" y="36" width="8" height="8" fill="#2A2A2A"/>
+            <rect x="116" y="20" width="8" height="40" fill="#B8FF3D"/>
+            <rect x="132" y="10" width="8" height="60" fill="#B8FF3D"/>
+            <rect x="148" y="26" width="8" height="28" fill="#2A2A2A"/>
+            <rect x="164" y="34" width="8" height="12" fill="#2A2A2A"/>
+            <rect x="180" y="14" width="8" height="52" fill="#B8FF3D"/>
+            <rect x="196" y="30" width="8" height="20" fill="#2A2A2A"/>
+            <rect x="212" y="38" width="8" height="4" fill="#2A2A2A"/>
+          </svg>
+        </div>
+      </div>
+    </div>
+
+    <!-- LAYER 05: GET STRONGER. SMARTER. -->
+    <div id="landingLayer5" class="landing-section landing-layer" data-layer="5">
+      <div class="landing-layer-content">
+        <div class="layer-number-badge">05 / PERFORMANCE</div>
+        <h2 class="landing-layer-title">GET STRONGER. SMARTER.</h2>
+        <p class="landing-layer-subtitle">Built around your performance.</p>
+        <div class="landing-cta-container">
+          <button id="enterFitquestBtn5" class="btn-landing-enter btn-landing-final">
+            ENTER FITQUEST <i class="fa-solid fa-arrow-right"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <!-- AUTHENTICATION SCREEN VIEW -->
   <section id="authView" class="auth-view-wrapper">
     <div class="auth-card">
@@ -23,7 +127,7 @@
           <i class="fa-solid fa-bolt"></i>
         </div>
         <h1>FitQuest <span class="brand-tag">AI</span></h1>
-        <p class="auth-subtitle">Your Personal AI Fitness Coach & Telemetry Assistant</p>
+        <p class="auth-subtitle">Minimal Athletic Performance Telemetry & AI Coaching</p>
       </div>
 
       <!-- Auth Error Alert Box -->
@@ -59,14 +163,14 @@
           </div>
 
           <div class="form-options" style="display: flex; justify-content: space-between; align-items: center;">
-            <label class="remember-me">
+            <label class="remember-me" style="display: flex; align-items: center; gap: 6px; font-size: 0.82rem; color: var(--text-secondary);">
               <input type="checkbox" id="loginRemember" checked>
               <span>Remember me</span>
             </label>
             <a href="#" id="forgotPassLink" class="auth-link">Forgot Password?</a>
           </div>
 
-          <button type="submit" id="loginBtn" class="btn btn-primary btn-xl btn-block">
+          <button type="submit" id="loginBtn" class="btn btn-primary btn-xl" style="margin-top: 20px;">
             Login
           </button>
         </form>
@@ -75,8 +179,8 @@
       <!-- FORGOT PASSWORD FORM -->
       <div id="forgotPasswordFormContainer" class="auth-form-container" style="display: none;">
         <div class="auth-form-header" style="margin-bottom: 20px;">
-          <h2><i class="fa-solid fa-key" style="color: var(--accent-cyan);"></i> Forgot Your Password?</h2>
-          <p style="color: var(--text-muted); font-size: 0.9rem; margin-top: 8px;">
+          <h2><i class="fa-solid fa-key" style="color: var(--accent-lime);"></i> Forgot Your Password?</h2>
+          <p style="color: var(--text-secondary); font-size: 0.88rem; margin-top: 6px;">
             Enter the email associated with your FitQuest account and we'll send you instructions to reset your password.
           </p>
         </div>
@@ -90,7 +194,7 @@
             </div>
           </div>
 
-          <button type="submit" id="forgotBtn" class="btn btn-primary btn-xl btn-block">
+          <button type="submit" id="forgotBtn" class="btn btn-primary btn-xl" style="margin-top: 16px;">
             Send Reset Link
           </button>
 
@@ -103,8 +207,8 @@
       <!-- RESET PASSWORD FORM -->
       <div id="resetPasswordFormContainer" class="auth-form-container" style="display: none;">
         <div class="auth-form-header" style="margin-bottom: 20px;">
-          <h2><i class="fa-solid fa-lock" style="color: var(--accent-cyan);"></i> Reset Your Password</h2>
-          <p style="color: var(--text-muted); font-size: 0.9rem; margin-top: 8px;">
+          <h2><i class="fa-solid fa-lock" style="color: var(--accent-lime);"></i> Reset Your Password</h2>
+          <p style="color: var(--text-secondary); font-size: 0.88rem; margin-top: 6px;">
             Enter your new password below to regain access to your FitQuest account.
           </p>
         </div>
@@ -128,7 +232,7 @@
             </div>
           </div>
 
-          <button type="submit" id="resetBtn" class="btn btn-primary btn-xl btn-block">
+          <button type="submit" id="resetBtn" class="btn btn-primary btn-xl" style="margin-top: 16px;">
             Reset Password
           </button>
 
@@ -140,27 +244,26 @@
 
       <!-- REGISTER FORM -->
       <div id="registerFormContainer" class="auth-form-container" style="display: none;">
-
         <form id="registerForm">
-          <div class="form-grid">
-            <div class="form-group">
+          <div class="form-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+            <div class="form-group" style="grid-column: 1 / -1;">
               <label for="regName">Full Name *</label>
               <input type="text" id="regName" placeholder="e.g. Alex Strength" required>
             </div>
 
-            <div class="form-group">
+            <div class="form-group" style="grid-column: 1 / -1;">
               <label for="regEmail">Email Address *</label>
               <input type="email" id="regEmail" placeholder="e.g. alex@example.com" required>
             </div>
 
             <div class="form-group">
               <label for="regPassword">Password *</label>
-              <input type="password" id="regPassword" placeholder="Minimum 6 chars" required minlength="6">
+              <input type="password" id="regPassword" placeholder="Min 6 chars" required minlength="6">
             </div>
 
             <div class="form-group">
               <label for="regConfirmPassword">Confirm Password *</label>
-              <input type="password" id="regConfirmPassword" placeholder="Re-enter password" required minlength="6">
+              <input type="password" id="regConfirmPassword" placeholder="Re-enter" required minlength="6">
             </div>
 
             <div class="form-group">
@@ -211,7 +314,7 @@
             </div>
           </div>
 
-          <button type="submit" id="registerBtn" class="btn btn-primary btn-xl btn-block" style="margin-top: 15px;">
+          <button type="submit" id="registerBtn" class="btn btn-primary btn-xl" style="margin-top: 16px;">
             Create Account
           </button>
         </form>
@@ -224,7 +327,7 @@
     <!-- Top Navigation Bar -->
     <nav class="app-nav">
       <div class="nav-container">
-        <div class="nav-brand">
+        <div class="nav-brand" onclick="switchTab('homeView')">
           <div class="nav-logo">
             <i class="fa-solid fa-bolt"></i>
           </div>
@@ -233,16 +336,19 @@
 
         <div class="nav-menu">
           <button class="nav-tab active" data-view="homeView">
-            <i class="fa-solid fa-house"></i> Home
+            <i class="fa-solid fa-house"></i> <span>Dashboard</span>
           </button>
           <button class="nav-tab" data-view="workoutView">
-            <i class="fa-solid fa-dumbbell"></i> Workout
+            <i class="fa-solid fa-dumbbell"></i> <span>Workout</span>
+          </button>
+          <button class="nav-tab" data-view="progressView">
+            <i class="fa-solid fa-chart-line"></i> <span>Analytics</span>
           </button>
           <button class="nav-tab" data-view="aiCoachView">
-            <i class="fa-solid fa-robot"></i> AI Coach
+            <i class="fa-solid fa-robot"></i> <span>AI Coach</span>
           </button>
           <button class="nav-tab" data-view="historyView">
-            <i class="fa-solid fa-clock-rotate-left"></i> History
+            <i class="fa-solid fa-clock-rotate-left"></i> <span>History</span>
           </button>
         </div>
 
@@ -261,7 +367,7 @@
       <section id="homeView" class="view-panel active">
         <div class="hero-banner">
           <div class="hero-text">
-            <span class="hero-badge"><i class="fa-solid fa-fire"></i> Powered by YOLOv8 Pose & Gemini AI</span>
+            <span class="hero-badge"><i class="fa-solid fa-bolt"></i> Powered by YOLOv8 Pose & Gemini AI</span>
             <h1>Transform Your Fitness with Precision AI Tracking</h1>
             <p>Real-time computer vision joint tracking, form scoring, and personalized AI coaching across 20 exercises.</p>
             <div class="hero-actions">
@@ -276,32 +382,82 @@
           <div class="hero-visual">
             <div class="visual-card">
               <i class="fa-solid fa-person-running visual-icon"></i>
-              <div class="visual-stat">20 Supported Exercises</div>
-              <div class="visual-sub">Real-time Biomechanics Evaluation</div>
+              <div class="visual-stat">20 Exercises</div>
+              <div class="visual-sub">Real-time Biomechanics</div>
             </div>
+          </div>
+        </div>
+
+        <!-- TODAY'S TRAINING READINESS CARD -->
+        <div id="readinessCard" class="readiness-widget-card" style="padding: 24px; margin-bottom: 32px; display: flex; flex-direction: column; gap: 20px;">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 16px;">
+            <div>
+              <div style="font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-secondary); margin-bottom: 4px; display: flex; align-items: center; gap: 6px;">
+                <i class="fa-solid fa-bullseye" style="color: var(--accent-lime);"></i> Today's Readiness
+              </div>
+              <h3 style="font-size: 1.4rem; font-weight: 800; color: var(--text-primary);" id="readinessStatusText">Loading Training Readiness...</h3>
+            </div>
+            <div style="display: flex; align-items: center; gap: 14px; background: var(--bg-surface-secondary); padding: 10px 20px; border-radius: var(--radius-sm); border: 1px solid var(--border-color);">
+              <div style="text-align: right;">
+                <div style="font-size: 0.7rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;">Readiness Score</div>
+                <div style="font-size: 2rem; font-weight: 800; color: var(--accent-lime);" id="readinessScoreVal">--</div>
+              </div>
+              <i class="fa-solid fa-gauge-high" style="font-size: 1.8rem; color: var(--accent-lime);" id="readinessGaugeIcon"></i>
+            </div>
+          </div>
+
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; background: var(--bg-surface-secondary); padding: 16px; border-radius: var(--radius-sm); border: 1px solid var(--border-color);">
+            <div>
+              <div style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase;">Recommended Intensity</div>
+              <div style="font-size: 1.05rem; font-weight: 700; color: var(--text-primary); margin-top: 2px;" id="readinessIntensity">--</div>
+            </div>
+            <div>
+              <div style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase;">Recommended Focus</div>
+              <div style="font-size: 1.05rem; font-weight: 700; color: var(--accent-lime); margin-top: 2px;" id="readinessFocus">--</div>
+            </div>
+            <div>
+              <div style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase;">Recent Form Trend</div>
+              <div style="font-size: 1.05rem; font-weight: 700; color: var(--status-success); margin-top: 2px;" id="readinessFormTrend">--</div>
+            </div>
+          </div>
+
+          <div style="font-size: 0.88rem; color: var(--text-secondary); line-height: 1.5; background: var(--bg-surface-secondary); border-left: 3px solid var(--accent-lime); padding: 12px 16px; border-radius: 0 var(--radius-sm) var(--radius-sm) 0;" id="readinessExplanation">
+            Analyzing your recent FitQuest workout history...
+          </div>
+
+          <div style="display: flex; justify-content: flex-end;">
+            <button id="startRecommendedBtn" class="btn btn-primary" onclick="startRecommendedWorkout()" style="display: none; font-size: 0.88rem;">
+              <i class="fa-solid fa-play"></i> Start Recommended Workout (<span id="recommendedExNameBtn">Squat</span>)
+            </button>
           </div>
         </div>
 
         <div class="dashboard-grid">
           <div class="dash-card" onclick="switchTab('workoutView')">
-            <div class="dash-card-icon cyan"><i class="fa-solid fa-dumbbell"></i></div>
-            <h3>20 Exercise Trackers</h3>
-            <p>Squat, Push-up, Bicep Curl, Lunges, Shoulder Press, Plank, and 14 more exercises.</p>
+            <div>
+              <div class="dash-card-icon"><i class="fa-solid fa-dumbbell"></i></div>
+              <h3>20 Exercise Trackers</h3>
+              <p>Squat, Push-up, Bicep Curl, Lunges, Shoulder Press, Plank, and 14 more exercises.</p>
+            </div>
             <span class="dash-card-link">Launch Selection <i class="fa-solid fa-arrow-right"></i></span>
           </div>
 
           <div class="dash-card" onclick="switchTab('aiCoachView')">
-            <div class="dash-card-icon purple"><i class="fa-solid fa-brain"></i></div>
-            <h3>FitQuest AI Coach</h3>
-            <p>Instant personalized feedback, biomechanics form breakdown, and workout recommendations.</p>
-            <span class="dash-card-link">Open Chatbot <i class="fa-solid fa-arrow-right"></i></span>
+            <div>
+              <div class="dash-card-icon"><i class="fa-solid fa-brain"></i></div>
+              <h3>FitQuest AI Coach</h3>
+              <p>Instant personalized feedback, biomechanics form breakdown, and workout recommendations.</p>
+            </div>
+            <span class="dash-card-link">Open Assistant <i class="fa-solid fa-arrow-right"></i></span>
           </div>
 
           <div class="dash-card" onclick="switchTab('historyView')">
-            <div class="dash-card-icon green"><i class="fa-solid fa-chart-line"></i></div>
-            <h3>Workout Analytics</h3>
-            <p>Track historical reps, form score trends, and AI coaching summaries over time.</p>
-            <span class="dash-card-link">View History <i class="fa-solid fa-arrow-right"></i></span>
+            <div>
+              <div class="dash-card-icon"><i class="fa-solid fa-chart-line"></i></div>
+              <h3>Workout Analytics</h3>
+              <p>Track historical reps, form score trends, and AI coaching summaries over time.</p>
+            </div>
+            <span class="dash-card-link">View Performance <i class="fa-solid fa-arrow-right"></i></span>
           </div>
         </div>
 
@@ -315,15 +471,17 @@
         <!-- STEP A: EXERCISE SELECTION SCREEN -->
         <div id="workoutSelectionStep" class="workout-step active">
           <div class="section-header">
-            <h2>Select Your Exercise</h2>
-            <p>Choose from the 20 real-time pose tracking exercises below to begin your session.</p>
+            <h2>Select Exercise</h2>
+            <p>Choose from 20 real-time pose tracking exercises to begin your session.</p>
           </div>
           
-          <div class="search-filter-bar">
-            <div class="search-box">
-              <i class="fa-solid fa-magnifying-glass"></i>
-              <input type="text" id="exerciseSearch" placeholder="Search exercise (e.g. Squat, Bicep Curl)...">
-            </div>
+          <div class="workout-mode-tabs" style="display: flex; gap: 8px; margin-bottom: 24px;">
+            <button id="modeQuickBtn" class="btn btn-secondary active-mode" onclick="switchWorkoutMode('quick')" style="flex: 1; justify-content: center; gap: 8px;">
+              <i class="fa-solid fa-bolt" style="color: var(--accent-lime);"></i> Single Exercise
+            </button>
+            <button id="modeStructuredBtn" class="btn btn-secondary" onclick="switchWorkoutMode('structured')" style="flex: 1; justify-content: center; gap: 8px;">
+              <i class="fa-solid fa-layer-group"></i> Structured Workout Routines
+            </button>
           </div>
 
           <div id="exerciseGrid" class="exercise-grid">
@@ -332,7 +490,12 @@
               <i class="fa-solid fa-circle-notch fa-spin"></i> Loading exercise catalogue from backend...
             </div>
           </div>
+
+          <div id="structuredPlanGrid" class="exercise-grid" style="display: none;">
+            <!-- Dynamically populated from GET /api/v1/structured-workouts/templates -->
+          </div>
         </div>
+
 
         <!-- STEP B: WORKOUT SETUP SCREEN -->
         <div id="workoutSetupStep" class="workout-step">
@@ -369,7 +532,7 @@
 
               <div class="setup-actions">
                 <button class="btn btn-primary btn-xl" onclick="startWorkoutSession()">
-                  <i class="fa-solid fa-play"></i> Start Workout
+                  <i class="fa-solid fa-play"></i> Start Session
                 </button>
               </div>
             </div>
@@ -378,6 +541,23 @@
 
         <!-- STEP C: ACTIVE WORKOUT SCREEN -->
         <div id="workoutActiveStep" class="workout-step">
+          <!-- Structured Workout HUD Top Banner -->
+          <div id="structuredHudBanner" style="display: none; background: var(--bg-surface-secondary); border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 12px 18px; margin-bottom: 16px; align-items: center; justify-content: space-between;">
+            <div style="display: flex; align-items: center; gap: 12px;">
+              <span class="active-session-tag"><i class="fa-solid fa-layer-group"></i> ROUTINE IN PROGRESS</span>
+              <span id="structuredRoutineTitle" style="font-weight: 700; color: var(--text-primary); font-size: 1rem;">Full Body Routine</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 16px;">
+              <div style="text-align: right;">
+                <span id="structuredExProgress" style="font-size: 0.8rem; color: var(--text-secondary); display: block;">Exercise 1 of 4: Push-ups</span>
+                <span id="structuredSetProgress" style="font-weight: 700; color: var(--accent-lime); font-size: 0.9rem;">Set 1 of 3 (Target: 12 Reps)</span>
+              </div>
+              <button id="structuredCompleteSetBtn" class="btn btn-primary" onclick="completeCurrentSet()" style="padding: 8px 16px; font-size: 0.85rem;">
+                <i class="fa-solid fa-check"></i> Complete Set
+              </button>
+            </div>
+          </div>
+
           <div class="active-workout-header">
             <div class="workout-title-area">
               <h2 id="activeExerciseTitle">Squat</h2>
@@ -402,7 +582,7 @@
                 <h3>Live Camera & CV Pose Stream</h3>
                 <p class="camera-notice" id="cameraNoticeText">
                   <i class="fa-solid fa-info-circle"></i> 
-                  Click "Start Workout" to connect your webcam to the YOLO Pose Engine.
+                  Click "Start Session" to connect webcam to YOLO Pose Engine.
                 </p>
               </div>
             </div>
@@ -439,21 +619,21 @@
           <div class="results-container">
             <div class="results-card">
               <div class="results-header">
-                <h2>🎉 Workout Complete!</h2>
-                <p>Great job! Your session telemetry has been saved and analyzed by FitQuest AI Coach.</p>
+                <h2>Workout Complete</h2>
+                <p style="color: var(--text-secondary); font-size: 0.9rem;">Your telemetry data has been saved and analyzed by AI Coach.</p>
               </div>
 
               <div class="results-stats-grid">
                 <div class="result-stat-box">
-                  <div class="stat-num" id="resRepCount">15</div>
+                  <div class="stat-num" id="resRepCount">--</div>
                   <div class="stat-lbl">Total Reps</div>
                 </div>
                 <div class="result-stat-box">
-                  <div class="stat-num" id="resDuration">01:30</div>
+                  <div class="stat-num" id="resDuration" style="color: var(--text-primary);">00:00</div>
                   <div class="stat-lbl">Duration</div>
                 </div>
                 <div class="result-stat-box">
-                  <div class="stat-num" id="resFormScore">91.7%</div>
+                  <div class="stat-num" id="resFormScore" style="color: var(--status-success);">N/A</div>
                   <div class="stat-lbl">Form Score</div>
                 </div>
               </div>
@@ -492,7 +672,7 @@
                 <h1>FitQuest AI Coach</h1>
                 <p class="subtitle">
                   <span class="status-dot"></span>
-                  Your personal AI fitness coach
+                  Personal Fitness & Biomechanics Assistant
                 </p>
               </div>
             </div>
@@ -505,19 +685,19 @@
 
           <!-- Quick Question Chips Bar -->
           <div class="quick-questions-container">
-            <div class="quick-questions-label">Quick Suggestions:</div>
+            <div class="quick-questions-label">Suggestions:</div>
             <div class="quick-questions-scroll">
-              <button class="chip-btn" data-question="How can I improve my squat?">
-                🏋️ How can I improve my squat?
+              <button type="button" class="chip-btn" data-question="How can I improve my squat?">
+                How can I improve my squat?
               </button>
-              <button class="chip-btn" data-question="How much rest do I need?">
-                ⏱️ How much rest do I need?
+              <button type="button" class="chip-btn" data-question="How much rest do I need?">
+                How much rest do I need?
               </button>
-              <button class="chip-btn" data-question="What should I eat after a workout?">
-                🥗 What should I eat after a workout?
+              <button type="button" class="chip-btn" data-question="What should I eat after a workout?">
+                What should I eat after a workout?
               </button>
-              <button class="chip-btn" data-question="How can I build strength?">
-                💪 How can I build strength?
+              <button type="button" class="chip-btn" data-question="How can I build strength?">
+                How can I build strength?
               </button>
             </div>
           </div>
@@ -530,8 +710,8 @@
               </div>
               <div class="message-bubble ai-bubble">
                 <div class="message-content">
-                  Hey! I'm your <strong>FitQuest AI Coach</strong> 💪<br>
-                  Ask me anything about workouts, fitness, nutrition, recovery, or exercise form.
+                  Welcome to <strong>FitQuest AI Coach</strong>.<br>
+                  Ask any question regarding form, training load, recovery, or nutrition.
                 </div>
                 <div class="message-time">Just now</div>
               </div>
@@ -558,7 +738,7 @@
                 type="text" 
                 id="userInput" 
                 class="chat-input" 
-                placeholder="Ask FitQuest AI Coach about form, rest, diet..." 
+                placeholder="Ask your fitness coach anything..." 
                 autocomplete="off"
                 required
               >
@@ -570,12 +750,172 @@
         </div>
       </section>
 
+      <!-- VIEW: PROGRESS & ANALYTICS DASHBOARD -->
+      <section id="progressView" class="view-panel">
+        <div class="progress-dashboard-container">
+          <div class="section-header-flex" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; flex-wrap: wrap; gap: 16px;">
+            <div>
+              <h2>Fitness Progress & Analytics</h2>
+              <p style="color: var(--text-secondary); font-size: 0.9rem; margin-top: 2px;">
+                Comprehensive telemetry breakdown of verified completed workouts, form trends, and volume over time.
+              </p>
+            </div>
+            <div class="filter-chips-group">
+              <button class="chip-filter active" onclick="setAnalyticsTimeRange('all', event)">All Time</button>
+              <button class="chip-filter" onclick="setAnalyticsTimeRange('90d', event)">90 Days</button>
+              <button class="chip-filter" onclick="setAnalyticsTimeRange('30d', event)">30 Days</button>
+              <button class="chip-filter" onclick="setAnalyticsTimeRange('7d', event)">7 Days</button>
+            </div>
+          </div>
+
+          <!-- OVERVIEW METRICS GRID -->
+          <div id="progressOverviewGrid" class="profile-metrics-grid" style="margin-bottom: 32px;">
+            <div class="prof-metric-box">
+              <div class="prof-metric-lbl"><i class="fa-solid fa-dumbbell"></i> Valid Workouts</div>
+              <div class="prof-metric-val highlight" id="progTotalWorkouts">0</div>
+            </div>
+            <div class="prof-metric-box">
+              <div class="prof-metric-lbl"><i class="fa-solid fa-repeat"></i> Total Repetitions</div>
+              <div class="prof-metric-val highlight" id="progTotalReps">0</div>
+            </div>
+            <div class="prof-metric-box">
+              <div class="prof-metric-lbl"><i class="fa-solid fa-chart-pie"></i> Avg Form Score</div>
+              <div class="prof-metric-val highlight" id="progAvgForm">0.0%</div>
+            </div>
+            <div class="prof-metric-box">
+              <div class="prof-metric-lbl"><i class="fa-solid fa-fire"></i> Current Streak</div>
+              <div class="prof-metric-val" id="progCurrentStreak">0 Days</div>
+            </div>
+            <div class="prof-metric-box">
+              <div class="prof-metric-lbl"><i class="fa-solid fa-award"></i> Best Form Score</div>
+              <div class="prof-metric-val" id="progBestForm">0.0%</div>
+            </div>
+            <div class="prof-metric-box">
+              <div class="prof-metric-lbl"><i class="fa-solid fa-trophy"></i> Max Reps (Set)</div>
+              <div class="prof-metric-val" id="progMaxReps">0</div>
+            </div>
+          </div>
+
+          <!-- PERSONALIZED GOALS & TARGETS SECTION -->
+          <div class="goals-section" style="margin-bottom: 36px;">
+            <div class="prof-section-title" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 12px;">
+              <div>
+                <h3><i class="fa-solid fa-bullseye"></i> Fitness Goals & Targets</h3>
+                <p style="color: var(--text-secondary); font-size: 0.85rem;">Track live progress toward personal fitness milestones</p>
+              </div>
+              <button class="btn btn-primary" onclick="openCreateGoalModal()" style="font-size: 0.85rem;">
+                <i class="fa-solid fa-plus"></i> Set New Goal
+              </button>
+            </div>
+            <div id="userGoalsGrid" class="goals-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 18px;">
+              <!-- Dynamic Goal Cards inserted by goals.js -->
+            </div>
+          </div>
+
+          <!-- RECOVERY & TRAINING LOAD INSIGHTS SECTION -->
+          <div class="training-load-section" style="margin-bottom: 36px;">
+            <div class="prof-section-title" style="margin-bottom: 16px;">
+              <h3><i class="fa-solid fa-bolt"></i> Recovery & Training Load Insights</h3>
+              <p style="color: var(--text-secondary); font-size: 0.85rem;">Acute/chronic workload ratio and estimated recovery status</p>
+            </div>
+
+            <div id="trainingLoadCard" style="background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 24px; display: flex; flex-direction: column; gap: 20px;">
+              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px;">
+                <!-- RECOVERY SCORE BOX -->
+                <div style="background: var(--bg-surface-secondary); padding: 18px; border-radius: var(--radius-sm); border: 1px solid var(--border-color);">
+                  <div style="font-size: 0.75rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase;">Recovery Score</div>
+                  <div style="display: flex; align-items: baseline; gap: 8px; margin-top: 4px;">
+                    <span style="font-size: 2rem; font-weight: 800; color: var(--accent-lime);" id="loadRecoveryScore">--</span>
+                    <span style="font-size: 0.85rem; font-weight: 700; color: var(--text-secondary);" id="loadRecoveryStatus">INSUFFICIENT DATA</span>
+                  </div>
+                </div>
+
+                <!-- TRAINING LOAD RATIO BOX -->
+                <div style="background: var(--bg-surface-secondary); padding: 18px; border-radius: var(--radius-sm); border: 1px solid var(--border-color);">
+                  <div style="font-size: 0.75rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase;">Training Load Ratio (ATL/CTL)</div>
+                  <div style="display: flex; align-items: baseline; gap: 8px; margin-top: 4px;">
+                    <span style="font-size: 2rem; font-weight: 800; color: var(--text-primary);" id="loadRatioVal">--</span>
+                    <span style="font-size: 0.85rem; font-weight: 700; color: var(--text-secondary);" id="loadZoneBadge">INSUFFICIENT DATA</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- METRICS GRID -->
+              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; background: var(--bg-surface-secondary); padding: 16px; border-radius: var(--radius-sm); border: 1px solid var(--border-color);">
+                <div>
+                  <div style="font-size: 0.75rem; color: var(--text-muted);">Acute Load (7d)</div>
+                  <div style="font-size: 1.1rem; font-weight: 700; color: var(--text-primary);" id="loadAcuteVal">0.0 pts</div>
+                </div>
+                <div>
+                  <div style="font-size: 0.75rem; color: var(--text-muted);">Chronic Load (28d)</div>
+                  <div style="font-size: 1.1rem; font-weight: 700; color: var(--text-primary);" id="loadChronicVal">0.0 pts</div>
+                </div>
+                <div>
+                  <div style="font-size: 0.75rem; color: var(--text-muted);">Recent Form Avg</div>
+                  <div style="font-size: 1.1rem; font-weight: 700; color: var(--status-success);" id="loadAvgForm">--</div>
+                </div>
+                <div>
+                  <div style="font-size: 0.75rem; color: var(--text-muted);">Rest Gap</div>
+                  <div style="font-size: 1.1rem; font-weight: 700; color: var(--accent-lime);" id="loadRestGap">--</div>
+                </div>
+              </div>
+
+              <!-- EXPLANATION BOX -->
+              <div style="font-size: 0.88rem; color: var(--text-secondary); line-height: 1.5; background: var(--bg-surface-secondary); border-left: 3px solid var(--accent-lime); padding: 12px 16px; border-radius: 0 var(--radius-sm) var(--radius-sm) 0;" id="loadExplanation">
+                Complete your first valid workout to unlock Recovery & Training Load Insights.
+              </div>
+            </div>
+          </div>
+
+          <!-- PROGRESS TREND CHARTS -->
+          <div class="analytics-charts-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 24px; margin-bottom: 32px;">
+            <div class="chart-card-wrapper" style="background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 20px;">
+              <h3 style="font-size: 1rem; font-weight: 700; margin-bottom: 16px; color: var(--text-primary); display: flex; align-items: center; gap: 8px;">
+                <i class="fa-solid fa-chart-line" style="color: var(--accent-lime);"></i> Form Accuracy Score Trend (%)
+              </h3>
+              <div style="position: relative; height: 260px; width: 100%;">
+                <canvas id="formTrendChart"></canvas>
+              </div>
+            </div>
+
+            <div class="chart-card-wrapper" style="background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 20px;">
+              <h3 style="font-size: 1rem; font-weight: 700; margin-bottom: 16px; color: var(--text-primary); display: flex; align-items: center; gap: 8px;">
+                <i class="fa-solid fa-chart-column" style="color: var(--accent-lime);"></i> Repetition Volume Trend
+              </h3>
+              <div style="position: relative; height: 260px; width: 100%;">
+                <canvas id="repTrendChart"></canvas>
+              </div>
+            </div>
+          </div>
+
+          <!-- PERSONAL RECORDS (PR) WALL -->
+          <div class="prof-section-divider"></div>
+          <div class="pr-section" style="margin-bottom: 32px;">
+            <div class="prof-section-title" style="margin-bottom: 16px;">
+              <h3><i class="fa-solid fa-crown"></i> Personal Records (PR) Wall</h3>
+              <p style="color: var(--text-secondary); font-size: 0.85rem;">Highest repetition accomplishments per exercise</p>
+            </div>
+            <div id="personalRecordsGrid" class="pr-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px;"></div>
+          </div>
+
+          <!-- EXERCISE PERFORMANCE BREAKDOWN -->
+          <div class="prof-section-divider"></div>
+          <div class="ex-perf-section" style="margin-bottom: 32px;">
+            <div class="prof-section-title" style="margin-bottom: 16px;">
+              <h3><i class="fa-solid fa-layer-group"></i> Exercise Performance Breakdown</h3>
+            </div>
+            <div id="exercisePerformanceContainer" class="ex-perf-list"></div>
+          </div>
+
+        </div>
+      </section>
+
       <!-- VIEW 4: WORKOUT HISTORY -->
       <section id="historyView" class="view-panel">
         <div class="history-container">
           <div class="section-header">
-            <h2>Workout History & Analytics</h2>
-            <p>Review past workouts recorded in the backend database for your profile.</p>
+            <h2>Workout History</h2>
+            <p>Review past workout telemetry sessions recorded in your profile.</p>
           </div>
 
           <div id="historyList" class="history-list">
@@ -590,8 +930,8 @@
       <section id="profileView" class="view-panel">
         <div class="profile-container">
           <div class="section-header">
-            <h2>My Fitness Profile</h2>
-            <p>Manage your account, fitness goals, experience level, and body metrics for personalized AI coaching.</p>
+            <h2>Athlete Profile</h2>
+            <p>Manage account settings, fitness goals, experience level, and body metrics.</p>
           </div>
 
           <div class="profile-card">
@@ -640,21 +980,17 @@
                 <h3><i class="fa-solid fa-fire"></i> Workout Streak & Activity</h3>
               </div>
               <div id="profStreakStatsContainer" class="profile-metrics-grid"></div>
-              <div id="profCalendarContainer" class="calendar-wrapper-box"></div>
+              <div id="profCalendarContainer" class="calendar-wrapper-box" style="margin-top: 16px;"></div>
             </div>
 
             <!-- GAMIFICATION: ACHIEVEMENTS & BADGES SECTION -->
             <div class="prof-section-divider"></div>
             <div class="prof-gamification-section">
               <div class="prof-section-title">
-                <h3><i class="fa-solid fa-trophy"></i> Fitness Achievements & Badges</h3>
+                <h3><i class="fa-solid fa-trophy"></i> Achievements & Badges</h3>
               </div>
-              <div id="profAchievementsGrid" class="achievements-grid"></div>
+              <div id="profAchievementsGrid" class="achievements-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 14px;"></div>
             </div>
-
-          </div>
-        </div>
-      </section>
 
           </div>
         </div>
@@ -677,7 +1013,7 @@
             <input type="text" id="editName" required>
           </div>
 
-          <div class="form-grid">
+          <div class="form-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
             <div class="form-group">
               <label for="editFitnessGoal">Fitness Goal</label>
               <select id="editFitnessGoal">
@@ -735,10 +1071,128 @@
     </div>
   </div>
 
+  <!-- CREATE GOAL MODAL OVERLAY -->
+  <div id="createGoalModal" class="modal-overlay" style="display: none;">
+    <div class="modal-card" style="max-width: 480px;">
+      <header class="modal-header">
+        <h3><i class="fa-solid fa-bullseye" style="color: var(--accent-lime);"></i> Set Personal Fitness Goal</h3>
+        <button class="modal-close-btn" onclick="closeCreateGoalModal()"><i class="fa-solid fa-xmark"></i></button>
+      </header>
+
+      <form id="createGoalForm" onsubmit="handleCreateGoalSubmit(event)">
+        <div class="modal-body" style="padding: 10px 0;">
+          <div class="form-group">
+            <label class="form-label">Goal Type</label>
+            <select id="goalTypeSelect" class="form-control" onchange="handleGoalTypeChange()" required>
+              <option value="REPETITION">Total Repetitions (e.g. 100 Squats)</option>
+              <option value="FREQUENCY">Workout Frequency (e.g. 4 days / week)</option>
+              <option value="FORM_SCORE">Form Score Accuracy (e.g. 90% Avg Form)</option>
+              <option value="EXERCISE_PR">Exercise PR (e.g. 20 Push-ups in 1 set)</option>
+            </select>
+          </div>
+
+          <div id="goalExerciseGroup" class="form-group">
+            <label class="form-label">Select Exercise</label>
+            <select id="goalExerciseSelect" class="form-control">
+              <option value="">-- Any / All Exercises --</option>
+              <option value="2">Squat</option>
+              <option value="1">Bicep Curl</option>
+              <option value="3">Push-up</option>
+              <option value="4">Lunge</option>
+              <option value="5">Jumping Jack</option>
+              <option value="6">Plank</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label id="goalTargetLabel" class="form-label">Target Repetitions</label>
+            <input type="number" id="goalTargetInput" class="form-control" placeholder="e.g. 100" min="1" step="any" required />
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Timeframe</label>
+            <select id="goalTimeframeSelect" class="form-control" required>
+              <option value="WEEKLY">Weekly (Resets every Monday)</option>
+              <option value="MONTHLY">Monthly (Resets 1st of month)</option>
+              <option value="ALL_TIME">All-Time Milestone</option>
+            </select>
+          </div>
+
+          <div id="goalErrorBox" class="auth-alert-box" style="display: none;"></div>
+        </div>
+
+        <footer class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="closeCreateGoalModal()">Cancel</button>
+          <button type="submit" class="btn btn-primary">Create Goal</button>
+        </footer>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: STRUCTURED ROUTINE PREVIEW -->
+  <div id="structuredPlanModal" class="modal-overlay" style="display: none;">
+    <div class="modal-card" style="max-width: 600px;">
+      <header class="modal-header">
+        <div>
+          <span id="planModalCategory" class="setup-badge">Full Body</span>
+          <h2 id="planModalTitle" style="font-size: 1.4rem; font-weight: 800; margin-top: 4px;">Full Body Workout</h2>
+        </div>
+        <button class="modal-close-btn" onclick="closeStructuredPlanModal()"><i class="fa-solid fa-xmark"></i></button>
+      </header>
+
+      <div class="modal-body">
+        <p id="planModalDesc" style="color: var(--text-secondary); margin-bottom: 16px; font-size: 0.88rem;">Complete routine targeting major muscle groups with YOLO pose tracking.</p>
+        
+        <div style="font-weight: 700; font-size: 0.78rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 12px;">Exercise Sequence</div>
+        <div id="planModalExerciseList" style="display: flex; flex-direction: column; gap: 8px; max-height: 280px; overflow-y: auto;">
+          <!-- Populated dynamically -->
+        </div>
+      </div>
+
+      <footer class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="closeStructuredPlanModal()">Cancel</button>
+        <button type="button" id="startStructuredPlanBtn" class="btn btn-primary">
+          <i class="fa-solid fa-play"></i> Start Routine
+        </button>
+      </footer>
+    </div>
+  </div>
+
+  <!-- MODAL: REST TIMER BETWEEN SETS -->
+  <div id="restTimerModal" class="modal-overlay" style="display: none;">
+    <div class="modal-card" style="max-width: 420px; text-align: center;">
+      <div style="font-size: 0.78rem; font-weight: 700; color: var(--accent-lime); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 6px;">Rest & Recover</div>
+      <div id="restTimerDisplay" style="font-size: 3.5rem; font-weight: 800; color: var(--text-primary); font-family: monospace; margin: 10px 0;">00:45</div>
+      
+      <div style="background: var(--bg-surface-secondary); border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 12px; margin: 16px 0;">
+        <span style="font-size: 0.72rem; color: var(--text-muted); display: block; text-transform: uppercase; font-weight: 700;">Upcoming Next</span>
+        <span id="restNextExerciseLabel" style="font-weight: 700; color: var(--text-primary); font-size: 0.95rem;">Push-ups — Set 2 (12 Reps)</span>
+      </div>
+
+      <div style="display: flex; gap: 10px; justify-content: center; margin-top: 16px;">
+        <button class="btn btn-secondary" onclick="addRestTime(15)">+15s Rest</button>
+        <button class="btn btn-primary" onclick="skipRestTimer()">
+          <i class="fa-solid fa-forward"></i> Skip Rest
+        </button>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- Chart.js Library for Progress Analytics Charts -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <!-- Global API Config -->
+  <script>window.API_BASE = 'http://127.0.0.1:8000/api/v1';</script>
+
+  <script src="landing.js"></script>
   <script src="auth.js"></script>
   <script src="gamification.js"></script>
+  <script src="progress.js"></script>
+  <script src="goals.js"></script>
+  <script src="readiness.js"></script>
+  <script src="training_load.js"></script>
   <script src="app.js"></script>
   <script src="workout.js"></script>
 </body>
 </html>
-

@@ -16,34 +16,40 @@ class AIFitnessAssistant:
     providing personalized feedback, biomechanical form guidance, and general Q&A.
     Features an offline rule-based engine fallback for guaranteed zero-downtime.
     """
-    def __init__(self, api_key: Optional[str] = None, model_name: str = "gemini-1.5-flash"):
-        self.api_key = api_key or os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
-        self.model_name = model_name
+    def __init__(self, api_key: Optional[str] = None, model_name: str = "gemini-3.6-flash"):
+
+        cleaned_key = api_key.strip() if api_key and isinstance(api_key, str) else None
+        self.api_key = cleaned_key or os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
+        # Migrate legacy/deprecated model names if passed
+        if model_name in ("gemini-1.5-flash", "gemini-1.5-pro", "gemini-2.0-flash", "gemini-2.5-flash"):
+            self.model_name = "gemini-3.6-flash"
+        else:
+            self.model_name = model_name
         self.genai_client = None
+        self.types = None
 
         if self.api_key:
             try:
-                import google.generativeai as genai
-                genai.configure(api_key=self.api_key)
-                self.genai_client = genai.GenerativeModel(
-                    model_name=self.model_name,
-                    system_instruction=SYSTEM_PROMPT
-                )
+                from google import genai
+                from google.genai import types
+                self.types = types
+                self.genai_client = genai.Client(api_key=self.api_key)
                 print(f"[INFO] AI Assistant initialized with Gemini API ({self.model_name}).")
             except ImportError:
-                print("[INFO] google.generativeai SDK not found. Running in Rule-Based Fallback Mode.")
+                print("[INFO] google-genai SDK not found. Running in Rule-Based Fallback Mode.")
             except Exception as e:
                 print(f"[WARNING] Could not initialize Gemini API: {e}. Falling back to Rule-Based Mode.")
 
     def generate_workout_feedback(self, session_data: WorkoutSessionData, user_profile: Optional[UserProfile] = None) -> str:
         """
         Interprets completed workout session metrics and produces personalized coaching feedback.
+        Requires a verified exercise result with valid_reps > 0.
         """
         profile = user_profile or UserProfile()
 
-        # Zero rep sessions MUST receive honest zero-rep feedback (never praise form)
-        if session_data.rep_count == 0:
-            return self._rule_based_workout_feedback(session_data, profile)
+        # Hard Data Validation Gate: Zero-rep or unverified sessions MUST return a deterministic message
+        if not session_data or session_data.rep_count is None or session_data.rep_count <= 0:
+            return "No valid repetitions were detected in this session, so there isn't enough workout data to generate performance insights. Complete an exercise and try again."
 
         if self.genai_client:
             try:
@@ -58,7 +64,12 @@ class AIFitnessAssistant:
                     fitness_goal=profile.fitness_goal,
                     experience_level=profile.experience_level
                 )
-                response = self.genai_client.generate_content(prompt)
+                config = self.types.GenerateContentConfig(system_instruction=SYSTEM_PROMPT) if self.types else None
+                response = self.genai_client.models.generate_content(
+                    model=self.model_name,
+                    contents=prompt,
+                    config=config
+                )
                 if response and response.text:
                     return response.text.strip()
             except Exception as e:
@@ -78,7 +89,12 @@ class AIFitnessAssistant:
                     form_score=form_score,
                     feedback_events=feedback_events or ["General posture check"]
                 )
-                response = self.genai_client.generate_content(prompt)
+                config = self.types.GenerateContentConfig(system_instruction=SYSTEM_PROMPT) if self.types else None
+                response = self.genai_client.models.generate_content(
+                    model=self.model_name,
+                    contents=prompt,
+                    config=config
+                )
                 if response and response.text:
                     return response.text.strip()
             except Exception as e:
@@ -100,7 +116,12 @@ class AIFitnessAssistant:
                     fitness_goal=profile.fitness_goal,
                     experience_level=profile.experience_level
                 )
-                response = self.genai_client.generate_content(prompt)
+                config = self.types.GenerateContentConfig(system_instruction=SYSTEM_PROMPT) if self.types else None
+                response = self.genai_client.models.generate_content(
+                    model=self.model_name,
+                    contents=prompt,
+                    config=config
+                )
                 if response and response.text:
                     return response.text.strip()
             except Exception as e:
@@ -287,28 +308,8 @@ class AIFitnessAssistant:
         score = session_data.form_score
 
         # Zero-rep session handling
-        if reps == 0:
-            return f"""
-================================================
-           AI COACH WORKOUT INSIGHTS
-================================================
-🎯 Performance Overview:
-   - Exercise: {exercise}
-   - Completed Reps: 0 reps | Duration: {duration}
-   - Target Goal: {profile.fitness_goal} ({profile.experience_level})
-
-🔬 Biomechanics & Form Rating: N/A (No Repetitions Detected)
-   No valid repetitions were detected during this workout session.
-
-💡 Actionable Coaching Cues for Next Set:
-   1. Position your body fully inside the camera frame so keypoints can be tracked cleanly.
-   2. Perform complete, deliberate movements through the full range of motion.
-   3. Ensure proper room lighting and avoid strong backlighting behind your body.
-
-🚀 Recommended Next Step:
-   Step back into full view of the camera and attempt your first set with controlled movement.
-================================================
-""".strip()
+        if reps is None or reps <= 0:
+            return "No valid repetitions were detected in this session, so there isn't enough workout data to generate performance insights. Complete an exercise and try again."
 
         # Grade evaluation for valid rep sessions
         if score >= 90.0:

@@ -69,18 +69,69 @@ def get_body_inclination(point_a, point_b):
 
 class AngleSmoother:
     """
-    Applies Exponential Moving Average (EMA) to smooth frame-to-frame joint angles.
+    Multi-stage Angle Filter:
+    Combines 3-frame Median Pre-filter + Deadband Noise Gate + Bounded EMA Smoothing.
+    Dampens camera keypoint jitter and single-frame tracking spikes while preserving fast physical motion.
     """
-    def __init__(self, alpha=0.35):
+    def __init__(self, alpha: float = 0.35, deadband_deg: float = 0.5, max_step_deg: float = 180.0, window_size: int = 3):
         self.alpha = alpha
+        self.deadband_deg = deadband_deg
+        self.max_step_deg = max_step_deg
+        self.window_size = window_size
+        
+        self.window = []
         self.smoothed_value = None
+        self.raw_value = None
 
     def update(self, new_value):
+        """
+        Updates smoothed angle cleanly. Returns float angle in degrees or None.
+        Safely handles None, NaN, or non-numeric inputs.
+        """
+        if new_value is None or not isinstance(new_value, (int, float)) or math.isnan(new_value):
+            return self.smoothed_value
+
+        val = float(new_value)
+        self.raw_value = val
+
+        # 1. 3-frame rolling window pre-filter (eliminates isolated 1-frame spikes)
+        self.window.append(val)
+        if len(self.window) > self.window_size:
+            self.window.pop(0)
+
+        # Median of rolling window
+        sorted_win = sorted(self.window)
+        median_val = sorted_win[len(sorted_win) // 2]
+
+        # 2. Initial state
         if self.smoothed_value is None:
-            self.smoothed_value = new_value
+            self.smoothed_value = median_val
+            return round(self.smoothed_value, 2)
+
+        # 3. Deadband Noise Gate: Ignore tiny fluctuations under deadband_deg
+        diff = median_val - self.smoothed_value
+        if abs(diff) < self.deadband_deg:
+            return round(self.smoothed_value, 2)
+
+        # 4. Outlier Bounded Step: Limit maximum angular change allowed per single frame
+        if abs(diff) > self.max_step_deg:
+            clamped_diff = math.copysign(self.max_step_deg, diff)
+            target = self.smoothed_value + clamped_diff
         else:
-            self.smoothed_value = (self.alpha * new_value) + ((1 - self.alpha) * self.smoothed_value)
-        return self.smoothed_value
+            target = median_val
+
+        # 5. EMA Update
+        self.smoothed_value = (self.alpha * target) + ((1.0 - self.alpha) * self.smoothed_value)
+        return round(self.smoothed_value, 2)
 
     def reset(self):
+        """
+        Resets all filter history cleanly between exercises or workout sessions.
+        """
+        self.window.clear()
         self.smoothed_value = None
+        self.raw_value = None
+
+
+
+

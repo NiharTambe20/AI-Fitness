@@ -31,10 +31,30 @@ class CVLiveService:
                 return k
         return None
 
+    def start_session(self, session_id: str, exercise_choice: str = "1") -> ExerciseController:
+        """
+        Forces creation of a brand new, clean ExerciseController for session_id,
+        purging any existing session state for that ID.
+        """
+        self._ensure_detector()
+        resolved_key = self.resolve_exercise_key(exercise_choice)
+        if not resolved_key:
+            raise ValueError(f"Invalid exercise choice '{exercise_choice}'. Supported exercises: 1-20 or names like 'Squat'.")
+
+        if session_id in self.active_sessions:
+            print(f"[INFO] Purging existing session controller for session '{session_id}'")
+            self.active_sessions.pop(session_id, None)
+
+        print(f"[INFO] Starting fresh CV live session '{session_id}' for exercise: {exercise_choice} (Key: {resolved_key})")
+        controller = ExerciseController(resolved_key)
+        self.active_sessions[session_id] = controller
+        return controller
+
     def get_or_create_session(self, session_id: str, exercise_choice: str = "1") -> ExerciseController:
         """
         Gets existing ExerciseController or creates a new one for session_id.
         Validates exercise_choice against ExerciseRegistry.
+        Purges stale controllers if exercise choice changes for the session.
         """
         self._ensure_detector()
         
@@ -42,6 +62,15 @@ class CVLiveService:
         resolved_key = self.resolve_exercise_key(exercise_choice)
         if not resolved_key:
             raise ValueError(f"Invalid exercise choice '{exercise_choice}'. Supported exercises: 1-20 or names like 'Squat'.")
+
+        if session_id in self.active_sessions:
+            existing_controller = self.active_sessions[session_id]
+            # If exercise changed for session, replace with fresh controller
+            current_key = getattr(existing_controller, "exercise_key", getattr(existing_controller.tracker, "exercise_key", None))
+            current_name = getattr(existing_controller.tracker, "name", "").lower()
+            if current_key != resolved_key and current_name != exercise_choice.lower() and current_name != resolved_key.lower():
+                print(f"[INFO] Re-initializing session '{session_id}' with fresh controller for exercise: {exercise_choice}")
+                self.active_sessions.pop(session_id, None)
 
         if session_id not in self.active_sessions:
             print(f"[INFO] Initializing new CV live session '{session_id}' for exercise: {exercise_choice} (Key: {resolved_key})")
@@ -51,12 +80,13 @@ class CVLiveService:
 
     def close_session(self, session_id: str) -> Optional[WorkoutSessionData]:
         """
-        Terminates session and returns final WorkoutSessionData summary.
+        Terminates session, pops from active sessions, and returns final WorkoutSessionData summary.
         """
         if session_id in self.active_sessions:
-            controller = self.active_sessions.pop(session_id)
-            controller.finish_session()
-            return controller.create_session_data()
+            controller = self.active_sessions.pop(session_id, None)
+            if controller:
+                controller.finish_session()
+                return controller.create_session_data()
         return None
 
     def process_frame(
@@ -96,6 +126,9 @@ class CVLiveService:
                 "form_score": controller.tracker.get_form_score(),
                 "state": getattr(controller.tracker, "state", "UNKNOWN"),
                 "feedback": ["Position yourself in view"],
+                "feedback_code": "LANDMARKS_MISSING",
+                "feedback_detail": "Position your body and key joints clearly in camera view.",
+                "feedback_priority": 1,
                 "valid": False,
                 "annotated_frame": None
             }
@@ -116,9 +149,13 @@ class CVLiveService:
             "secondary_angle": tracker_info.get("secondary_angle"),
             "form_score": tracker_info["form_score"],
             "feedback": tracker_info["feedback"],
+            "feedback_code": tracker_info.get("feedback_code", "GOOD_FORM"),
+            "feedback_detail": tracker_info.get("feedback_detail", tracker_info["feedback"][0] if tracker_info.get("feedback") else "Good form"),
+            "feedback_priority": tracker_info.get("feedback_priority", 7),
             "valid": tracker_info["valid"],
             "annotated_frame": annotated_b64
         }
+
 
     def process_base64_frame(
         self,

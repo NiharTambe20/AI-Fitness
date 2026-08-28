@@ -3,7 +3,13 @@
  * Connects directly to FastAPI backend endpoint: POST /api/v1/ai/qa
  */
 
+let isAICoachInitialized = false;
+let isSubmittingQA = false;
+
 document.addEventListener('DOMContentLoaded', () => {
+  if (isAICoachInitialized) return;
+  isAICoachInitialized = true;
+
   // DOM Elements
   const chatMessages = document.getElementById('chatMessages');
   const chatForm = document.getElementById('chatForm');
@@ -14,25 +20,32 @@ document.addEventListener('DOMContentLoaded', () => {
   const chipBtns = document.querySelectorAll('.chip-btn');
 
   // Backend API Target Endpoint
-  const API_ENDPOINT = 'http://127.0.0.1:8000/api/v1/ai/qa';
+  const API_ENDPOINT = (window.API_BASE || 'http://127.0.0.1:8000/api/v1') + '/ai/qa';
 
   // Handle Form Submission
-  chatForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const question = userInput.value.trim();
-    if (!question) return;
+  if (chatForm) {
+    chatForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      if (isSubmittingQA) return;
 
-    // Clear input & append User message bubble
-    userInput.value = '';
-    appendMessage(question, 'user');
+      const question = userInput.value.trim();
+      if (!question) return;
 
-    // Send HTTP POST request to Backend
-    await sendQuestionToBackend(question);
-  });
+      // Clear input & append User message bubble
+      userInput.value = '';
+      appendMessage(question, 'user');
+
+      // Send HTTP POST request to Backend
+      await sendQuestionToBackend(question);
+    });
+  }
 
   // Quick Question Chip Click Handlers
   chipBtns.forEach((chip) => {
-    chip.addEventListener('click', async () => {
+    chip.addEventListener('click', async (e) => {
+      e.preventDefault();
+      if (isSubmittingQA) return;
+
       const question = chip.getAttribute('data-question');
       if (!question) return;
 
@@ -42,27 +55,32 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // Clear Chat History
-  clearChatBtn.addEventListener('click', () => {
-    chatMessages.innerHTML = `
-      <div class="message-wrapper ai-wrapper">
-        <div class="avatar ai-avatar">
-          <i class="fa-solid fa-robot"></i>
-        </div>
-        <div class="message-bubble ai-bubble">
-          <div class="message-content">
-            Hey! I'm your <strong>FitQuest AI Coach</strong> 💪<br>
-            Ask me anything about workouts, fitness, nutrition, recovery, or exercise form.
+  if (clearChatBtn) {
+    clearChatBtn.addEventListener('click', () => {
+      chatMessages.innerHTML = `
+        <div class="message-wrapper ai-wrapper">
+          <div class="avatar ai-avatar">
+            <i class="fa-solid fa-robot"></i>
           </div>
-          <div class="message-time">Just now</div>
+          <div class="message-bubble ai-bubble">
+            <div class="message-content">
+              Hey! I'm your <strong>FitQuest AI Coach</strong> 💪<br>
+              Ask me anything about workouts, fitness, nutrition, recovery, or exercise form.
+            </div>
+            <div class="message-time">Just now</div>
+          </div>
         </div>
-      </div>
-    `;
-  });
+      `;
+    });
+  }
 
   /**
    * Sends user question to FastAPI backend endpoint POST /api/v1/ai/qa
    */
   async function sendQuestionToBackend(question) {
+    if (isSubmittingQA) return;
+    isSubmittingQA = true;
+
     // Show typing indicator & disable input controls
     setLoadingState(true);
 
@@ -75,7 +93,6 @@ document.addEventListener('DOMContentLoaded', () => {
         question: question,
         user_profile: profile
       };
-
 
       const response = await fetch(API_ENDPOINT, {
         method: 'POST',
@@ -102,6 +119,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const errorMessage = `Sorry, I couldn't connect to the FitQuest AI Coach. Please make sure the backend server is running.`;
       appendMessage(errorMessage, 'error');
     } finally {
+      isSubmittingQA = false;
       // Hide typing indicator & re-enable input
       setLoadingState(false);
     }
@@ -163,10 +181,12 @@ document.addEventListener('DOMContentLoaded', () => {
       typingIndicator.classList.remove('hidden');
       userInput.disabled = true;
       sendBtn.disabled = true;
+      chipBtns.forEach(c => c.disabled = true);
     } else {
       typingIndicator.classList.add('hidden');
       userInput.disabled = false;
       sendBtn.disabled = false;
+      chipBtns.forEach(c => c.disabled = false);
       userInput.focus();
     }
     scrollToBottom();
@@ -183,7 +203,8 @@ document.addEventListener('DOMContentLoaded', () => {
    * Escapes unsafe HTML characters for user text
    */
   function escapeHTML(str) {
-    return str.replace(/[&<>'"]/g, 
+    if (!str) return '';
+    return String(str).replace(/[&<>'"]/g, 
       tag => ({
         '&': '&amp;',
         '<': '&lt;',
@@ -195,20 +216,107 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   /**
-   * Formats basic markdown returned by AI Assistant into clean HTML
+   * Formats full GitHub Flavored Markdown returned by AI Assistant into clean, safe HTML.
    */
   function formatMarkdown(text) {
-    let formatted = escapeHTML(text);
-    
-    // **bold** -> <strong>bold</strong>
-    formatted = formatted.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-    
-    // *italic* -> <em>italic</em>
-    formatted = formatted.replace(/\*(.*?)\*/g, '<em>$1</em>');
-    
-    // Newlines -> <br>
-    formatted = formatted.replace(/\n/g, '<br>');
+    if (!text) return '';
 
-    return formatted;
+    const lines = text.split(/\r?\n/);
+    let htmlResult = [];
+    let inList = null; // 'ul' or 'ol'
+
+    function closeList() {
+      if (inList) {
+        htmlResult.push(`</${inList}>`);
+        inList = null;
+      }
+    }
+
+    for (let line of lines) {
+      let trimmed = line.trim();
+
+      // Check for Headings (#, ##, ###)
+      const h3Match = trimmed.match(/^###\s+(.*)/);
+      if (h3Match) {
+        closeList();
+        let content = processInlineMarkdown(escapeHTML(h3Match[1]));
+        htmlResult.push(`<h3>${content}</h3>`);
+        continue;
+      }
+
+      const h2Match = trimmed.match(/^##\s+(.*)/);
+      if (h2Match) {
+        closeList();
+        let content = processInlineMarkdown(escapeHTML(h2Match[1]));
+        htmlResult.push(`<h2>${content}</h2>`);
+        continue;
+      }
+
+      const h1Match = trimmed.match(/^#\s+(.*)/);
+      if (h1Match) {
+        closeList();
+        let content = processInlineMarkdown(escapeHTML(h1Match[1]));
+        htmlResult.push(`<h1>${content}</h1>`);
+        continue;
+      }
+
+      // Check for Blockquotes (> )
+      const bqMatch = trimmed.match(/^>\s+(.*)/);
+      if (bqMatch) {
+        closeList();
+        let content = processInlineMarkdown(escapeHTML(bqMatch[1]));
+        htmlResult.push(`<blockquote>${content}</blockquote>`);
+        continue;
+      }
+
+      // Check for Unordered List Items (- or *)
+      const unorderedMatch = trimmed.match(/^[-*]\s+(.*)/);
+      if (unorderedMatch) {
+        if (inList !== 'ul') {
+          closeList();
+          htmlResult.push('<ul class="markdown-list">');
+          inList = 'ul';
+        }
+        let content = processInlineMarkdown(escapeHTML(unorderedMatch[1]));
+        htmlResult.push(`<li>${content}</li>`);
+        continue;
+      }
+
+      // Check for Ordered List Items (1. , 2. )
+      const orderedMatch = trimmed.match(/^\d+\.\s+(.*)/);
+      if (orderedMatch) {
+        if (inList !== 'ol') {
+          closeList();
+          htmlResult.push('<ol class="markdown-list">');
+          inList = 'ol';
+        }
+        let content = processInlineMarkdown(escapeHTML(orderedMatch[1]));
+        htmlResult.push(`<li>${content}</li>`);
+        continue;
+      }
+
+      // Blank line
+      if (trimmed === '') {
+        closeList();
+        continue;
+      }
+
+      // Paragraph
+      closeList();
+      let content = processInlineMarkdown(escapeHTML(trimmed));
+      htmlResult.push(`<p>${content}</p>`);
+    }
+
+    closeList();
+    return htmlResult.join('');
+  }
+
+  function processInlineMarkdown(escapedStr) {
+    // **bold** -> <strong>bold</strong>
+    let res = escapedStr.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+    // *italic* -> <em>italic</em>
+    res = res.replace(/\*(.*?)\*/g, '<em>$1</em>');
+    return res;
   }
 });
+

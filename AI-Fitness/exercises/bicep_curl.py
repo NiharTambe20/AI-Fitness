@@ -1,6 +1,12 @@
 import time
 import numpy as np
-from utils import calculate_angle, AngleSmoother, BaseExerciseTracker, are_landmarks_valid
+from utils import (
+    calculate_angle,
+    AngleSmoother,
+    BaseExerciseTracker,
+    are_landmarks_valid,
+    get_landmark_point,
+)
 
 class BicepCurlTracker(BaseExerciseTracker):
     """
@@ -34,20 +40,51 @@ class BicepCurlTracker(BaseExerciseTracker):
             elbow_angles.append(self.right_elbow_smoother.update(raw_r))
 
         if not elbow_angles:
-            return self.build_result("EXTENDED", feedback=["Position arms in view"], valid=False)
+            return self.build_result(
+                "EXTENDED",
+                feedback=["Position arms in view"],
+                valid=False,
+                feedback_code="LANDMARKS_MISSING",
+                feedback_detail="Position your arms and upper body clearly in camera view.",
+                feedback_priority=1
+            )
 
         avg_elbow_angle = float(np.mean(elbow_angles))
         feedback_list = []
         is_good_form = True
+        fb_code = "GOOD_FORM"
+        fb_detail = "Great curl! Controlled movement."
+        fb_priority = 7
         now = time.time()
+
+        # Check for upper arm / elbow sway alignment
+        p_sh = get_landmark_point(keypoints, "left_shoulder") or get_landmark_point(keypoints, "right_shoulder")
+        p_el = get_landmark_point(keypoints, "left_elbow") or get_landmark_point(keypoints, "right_elbow")
+        if p_sh and p_el:
+            # If elbow drifts too far horizontally relative to shoulder
+            dx_elbow = abs(p_el[0] - p_sh[0])
+            if dx_elbow > 80.0:  # Excessive elbow drift
+                feedback_list.append("Keep upper arm still")
+                is_good_form = False
+                fb_code = "ELBOW_MISALIGNED"
+                fb_detail = "Keep your upper arm still and your elbow close to your body."
+                fb_priority = 3
 
         if self.state == "EXTENDED":
             if avg_elbow_angle <= self.curled_angle:
                 self.state = "CURLED"
                 self.min_angle_in_rep = avg_elbow_angle
-                feedback_list.append("Good curl! Lower arms")
+                if is_good_form:
+                    feedback_list.append("Good curl! Lower arms")
+                    fb_code = "GOOD_FORM"
+                    fb_detail = "Good curl depth! Lower your arms under control."
+                    fb_priority = 7
             else:
-                feedback_list.append("Curl Up")
+                if is_good_form:
+                    feedback_list.append("Curl Up")
+                    fb_code = "GOOD_FORM"
+                    fb_detail = "Curl your arm upward towards your shoulder."
+                    fb_priority = 7
 
         elif self.state == "CURLED":
             if avg_elbow_angle < self.min_angle_in_rep:
@@ -60,18 +97,36 @@ class BicepCurlTracker(BaseExerciseTracker):
 
                     if self.min_angle_in_rep <= self.curled_angle:
                         feedback_list.append("Great Rep!")
+                        fb_code = "GOOD_FORM"
+                        fb_detail = "Great rep! Full range of motion."
+                        fb_priority = 7
                     else:
                         feedback_list.append("Curl higher next time")
                         is_good_form = False
+                        fb_code = "INSUFFICIENT_DEPTH"
+                        fb_detail = "Curl your arm further towards your shoulder."
+                        fb_priority = 4
 
                     self.form_scores.append(1 if is_good_form else 0)
 
                 self.state = "EXTENDED"
                 self.min_angle_in_rep = 180.0
             else:
-                feedback_list.append("Lower Arms")
+                if is_good_form:
+                    feedback_list.append("Lower Arms")
+                    fb_code = "GOOD_FORM"
+                    fb_detail = "Extend your arms smoothly back down."
+                    fb_priority = 7
 
         if is_good_form and not feedback_list:
             feedback_list.append("GOOD FORM")
 
-        return self.build_result(self.state, primary_angle=avg_elbow_angle, feedback=feedback_list, valid=True)
+        return self.build_result(
+            self.state,
+            primary_angle=avg_elbow_angle,
+            feedback=feedback_list,
+            valid=True,
+            feedback_code=fb_code,
+            feedback_detail=fb_detail,
+            feedback_priority=fb_priority
+        )
