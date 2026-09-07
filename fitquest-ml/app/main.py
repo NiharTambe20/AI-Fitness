@@ -1,5 +1,6 @@
 import os
 import sys
+import threading
 from pathlib import Path
 from typing import Optional, List, Dict, Any
 from fastapi import FastAPI, HTTPException, status
@@ -12,6 +13,9 @@ if _app_dir not in sys.path:
     sys.path.insert(0, _app_dir)
 
 from cv_service import cv_live_service
+
+# Process-level inference lock preventing overlapping YOLO forward passes
+_inference_lock = threading.Lock()
 
 app = FastAPI(
     title="FitQuest ML Engine",
@@ -116,12 +120,13 @@ def process_live_frame(payload: LiveFrameProcessRequest):
             session_id=payload.session_id,
             exercise_choice=payload.exercise_choice
         )
-        telemetry = cv_live_service.process_base64_frame(
-            controller=controller,
-            base64_str=payload.frame_data,
-            include_annotated_image=payload.include_annotated_image,
-            session_id=payload.session_id
-        )
+        with _inference_lock:
+            telemetry = cv_live_service.process_base64_frame(
+                controller=controller,
+                base64_str=payload.frame_data,
+                include_annotated_image=payload.include_annotated_image,
+                session_id=payload.session_id
+            )
         return telemetry
     except ValueError as err:
         raise HTTPException(status_code=400, detail=str(err))

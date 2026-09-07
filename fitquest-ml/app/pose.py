@@ -4,7 +4,11 @@ import time
 from pathlib import Path
 import cv2
 import numpy as np
+import torch
 from ultralytics import YOLO
+
+# Configure PyTorch CPU thread usage conservatively for small container environments
+torch.set_num_threads(1)
 
 # Resolve paths robustly relative to fitquest-ml service root
 SERVICE_ROOT = Path(__file__).resolve().parent.parent
@@ -16,7 +20,7 @@ class PoseDetector:
     """
     YOLO Pose detector with real-time HUD rendering, joint tracking,
     and modular exercise repetition counting.
-    Decoupled standalone service edition.
+    Decoupled standalone service edition with memory optimizations.
     """
     KEYPOINT_MAP = {
         "nose": 0,
@@ -62,16 +66,27 @@ class PoseDetector:
 
         print("[INFO] YOLO Pose model loaded successfully.")
 
-    def process_frame(self, frame, tracker=None, draw_debug_hud=False, clean_overlay=True):
-        results = self.model(frame, verbose=False)
-        if clean_overlay:
-            # Clean, subtle skeleton: omit bounding boxes, class labels, and confidence numbers
-            try:
-                annotated_frame = results[0].plot(boxes=False, labels=False, conf=False, kpt_radius=3, line_width=2)
-            except Exception:
+    def process_frame(
+        self,
+        frame,
+        tracker=None,
+        draw_debug_hud=False,
+        clean_overlay=True,
+        include_annotated_image=True
+    ):
+        with torch.inference_mode():
+            results = self.model(frame, verbose=False, max_det=1)
+
+        annotated_frame = None
+        if include_annotated_image:
+            if clean_overlay:
+                # Clean, subtle skeleton: omit bounding boxes, class labels, and confidence numbers
+                try:
+                    annotated_frame = results[0].plot(boxes=False, labels=False, conf=False, kpt_radius=3, line_width=2)
+                except Exception:
+                    annotated_frame = results[0].plot()
+            else:
                 annotated_frame = results[0].plot()
-        else:
-            annotated_frame = results[0].plot()
 
         keypoints = {}
         body_detected = False
@@ -93,11 +108,14 @@ class PoseDetector:
             core_landmarks = ["left_shoulder", "right_shoulder", "left_elbow", "right_elbow", "left_hip", "right_hip"]
             valid_core_count = sum(1 for lm in core_landmarks if keypoints.get(lm, {}).get("valid", False))
             body_detected = (valid_core_count >= 1)
+            del person_kpts
+
+        del results
 
         tracker_info = None
         if tracker is not None:
             tracker_info = tracker.process(keypoints)
-            if draw_debug_hud:
+            if draw_debug_hud and annotated_frame is not None:
                 self.draw_hud(annotated_frame, tracker_info, body_detected)
 
         return annotated_frame, keypoints, tracker_info

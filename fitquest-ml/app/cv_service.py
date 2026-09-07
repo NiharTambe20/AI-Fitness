@@ -157,7 +157,8 @@ class CVLiveService:
         # 2. Process frame with PoseDetector & active exercise tracker
         annotated_frame, keypoints, tracker_info = self.detector.process_frame(
             frame,
-            tracker=controller.tracker
+            tracker=controller.tracker,
+            include_annotated_image=include_annotated_image
         )
 
         if tracker_info is None:

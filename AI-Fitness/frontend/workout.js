@@ -1207,6 +1207,8 @@ async function startCameraStream() {
 /**
  * Transmits video frames to backend CV Engine via HTTP / WebSocket
  */
+let isProcessingFrame = false;
+
 function startFrameTransmission() {
   const video = document.getElementById('webcamFeed');
   const canvas = document.getElementById('frameCanvas');
@@ -1214,10 +1216,12 @@ function startFrameTransmission() {
   const ctx = canvas ? canvas.getContext('2d') : null;
 
   if (frameCaptureInterval) clearInterval(frameCaptureInterval);
+  isProcessingFrame = false;
 
   // Send frame every 120ms (~8-10 FPS)
   frameCaptureInterval = setInterval(async () => {
     if (!video || video.paused || video.ended || !video.videoWidth) return;
+    if (isProcessingFrame) return;
 
     canvas.width = video.videoWidth || 640;
     canvas.height = video.videoHeight || 480;
@@ -1226,6 +1230,7 @@ function startFrameTransmission() {
     const base64Frame = canvas.toDataURL('image/jpeg', 0.6);
 
     try {
+      isProcessingFrame = true;
       const payload = {
         session_id: activeSessionId,
         exercise_choice: String(selectedExercise.id),
@@ -1246,6 +1251,8 @@ function startFrameTransmission() {
 
     } catch (err) {
       console.error('[FitQuest Frame Processing Error]:', err);
+    } finally {
+      isProcessingFrame = false;
     }
   }, 120);
 }
@@ -1431,6 +1438,7 @@ function updateHUDTelemetry(telemetry, overlayElement) {
  * Stops camera stream cleanly and releases webcam hardware
  */
 function stopCameraStream() {
+  isProcessingFrame = false;
   if (frameCaptureInterval) {
     clearInterval(frameCaptureInterval);
     frameCaptureInterval = null;
