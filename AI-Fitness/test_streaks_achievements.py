@@ -18,21 +18,46 @@ Verifies:
 import unittest
 from datetime import datetime, date, timedelta, timezone
 from fastapi.testclient import TestClient
+from sqlalchemy import create_engine
+from sqlalchemy.pool import StaticPool
+from sqlalchemy.orm import sessionmaker
 
 from backend.main import app
-from backend.database import Base, engine, SessionLocal
+from backend.database import Base, get_db
 from backend.models import UserModel, WorkoutSessionModel, ExerciseModel, UserAchievementModel
 from backend.services.gamification_service import gamification_service
+
+# Isolated in-memory SQLite database
+TEST_DATABASE_URL = "sqlite:///:memory:"
+test_engine = create_engine(
+    TEST_DATABASE_URL,
+    connect_args={"check_same_thread": False},
+    poolclass=StaticPool
+)
+TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=test_engine)
+
+def override_get_db():
+    db = TestingSessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
 
 class TestGamificationSystem(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        Base.metadata.create_all(bind=engine)
+        app.dependency_overrides[get_db] = override_get_db
+        Base.metadata.create_all(bind=test_engine)
         cls.client = TestClient(app)
 
+    @classmethod
+    def tearDownClass(cls):
+        app.dependency_overrides.clear()
+        Base.metadata.drop_all(bind=test_engine)
+
     def setUp(self):
-        self.db = SessionLocal()
+        self.db = TestingSessionLocal()
         # Clean test tables
         self.db.query(UserAchievementModel).delete()
         self.db.query(WorkoutSessionModel).delete()
@@ -44,9 +69,8 @@ class TestGamificationSystem(unittest.TestCase):
         if not ex:
             ex = ExerciseModel(
                 name="Squat",
-                category="Compound",
                 difficulty="Intermediate",
-                target_muscle_group="Legs & Core",
+                muscle_group="Legs & Core",
                 description="Squat test exercise"
             )
             self.db.add(ex)
@@ -108,7 +132,7 @@ class TestGamificationSystem(unittest.TestCase):
                 "duration_sec": 60,
                 "form_score": 90.0
             }
-        })
+        }, headers=headers)
         self.assertEqual(wo_res.status_code, 201)
 
         # Check Streak
@@ -134,11 +158,11 @@ class TestGamificationSystem(unittest.TestCase):
         # Workout 1
         self.client.post("/api/v1/workouts", json={
             "session_data": {"user_id": user_id, "exercise_id": self.test_exercise.id, "repetitions": 10, "duration_sec": 45, "form_score": 85.0}
-        })
+        }, headers=headers)
         # Workout 2 on same day
         self.client.post("/api/v1/workouts", json={
             "session_data": {"user_id": user_id, "exercise_id": self.test_exercise.id, "repetitions": 12, "duration_sec": 50, "form_score": 88.0}
-        })
+        }, headers=headers)
 
         streak_res = self.client.get("/api/v1/streaks/me", headers=headers).json()
         self.assertEqual(streak_res["current_streak"], 1, "Same day workouts must NOT count as multiple streak days!")
@@ -248,7 +272,7 @@ class TestGamificationSystem(unittest.TestCase):
         # User A completes valid workout
         self.client.post("/api/v1/workouts", json={
             "session_data": {"user_id": user_a["user"]["id"], "exercise_id": self.test_exercise.id, "repetitions": 20, "duration_sec": 60, "form_score": 95.0}
-        })
+        }, headers=headers_a)
 
         streak_a = self.client.get("/api/v1/streaks/me", headers=headers_a).json()
         streak_b = self.client.get("/api/v1/streaks/me", headers=headers_b).json()

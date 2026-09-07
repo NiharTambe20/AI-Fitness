@@ -1,5 +1,5 @@
 from typing import Optional
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 
 class TrainingLoadSupportingMetrics(BaseModel):
     valid_workouts_7d: int = 0
@@ -22,5 +22,4 @@ class TrainingLoadResponse(BaseModel):
     supporting_metrics: TrainingLoadSupportingMetrics
     explanation: str = Field(..., description="Deterministic explanation based on verified workout telemetry")
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)

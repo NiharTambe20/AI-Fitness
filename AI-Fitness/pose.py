@@ -40,9 +40,16 @@ class PoseDetector:
             
         print("[INFO] YOLO Pose model loaded successfully.")
 
-    def process_frame(self, frame, tracker=None):
+    def process_frame(self, frame, tracker=None, draw_debug_hud=False, clean_overlay=True):
         results = self.model(frame, verbose=False)
-        annotated_frame = results[0].plot()
+        if clean_overlay:
+            # Clean, subtle skeleton: omit bounding boxes, class labels, and confidence numbers
+            try:
+                annotated_frame = results[0].plot(boxes=False, labels=False, conf=False, kpt_radius=3, line_width=2)
+            except Exception:
+                annotated_frame = results[0].plot()
+        else:
+            annotated_frame = results[0].plot()
 
         keypoints = {}
         body_detected = False
@@ -68,7 +75,8 @@ class PoseDetector:
         tracker_info = None
         if tracker is not None:
             tracker_info = tracker.process(keypoints)
-            self.draw_hud(annotated_frame, tracker_info, body_detected)
+            if draw_debug_hud:
+                self.draw_hud(annotated_frame, tracker_info, body_detected)
 
         return annotated_frame, keypoints, tracker_info
 

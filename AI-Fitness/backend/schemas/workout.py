@@ -16,7 +16,7 @@ class FormLogResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 class WorkoutSessionCreate(BaseModel):
-    user_id: int
+    user_id: Optional[int] = None
     exercise_id: int
     repetitions: int = Field(default=0, ge=0)
     duration_sec: int = Field(default=0, ge=0)

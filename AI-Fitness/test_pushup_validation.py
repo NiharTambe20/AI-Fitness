@@ -41,6 +41,7 @@ class TestPushUpMultiLayerValidation(unittest.TestCase):
         disp_tracker.capture_start(horiz_kpts)
         moved_kpts = {
             "left_shoulder": {"x": 100, "y": 150, "conf": 0.9, "valid": True},
+            "left_hip":      {"x": 300, "y": 150, "conf": 0.9, "valid": True},
         }
         disp_tracker.update(moved_kpts)
         self.assertEqual(disp_tracker.get_max_displacement(), 50.0)
@@ -69,12 +70,12 @@ class TestPushUpMultiLayerValidation(unittest.TestCase):
         self.assertEqual(tracker.state, "UP")
         self.assertEqual(tracker.rep_count, 0)
 
-        for _ in range(3):
+        for _ in range(8):
             tracker.process(down_kpts)
         self.assertEqual(tracker.state, "DOWN")
 
-        time.sleep(0.15)
-        for _ in range(3):
+        time.sleep(0.45)
+        for _ in range(8):
             tracker.process(up_kpts)
 
         self.assertEqual(tracker.state, "UP")
@@ -197,14 +198,12 @@ class TestPushUpMultiLayerValidation(unittest.TestCase):
         }
 
         for _ in range(3):
-            for _ in range(3):
-                tracker.process(up_kpts)
-            for _ in range(3):
+            for _ in range(8):
                 tracker.process(down_kpts)
-            time.sleep(0.08)
-            for _ in range(3):
+            time.sleep(0.45)
+            for _ in range(8):
                 tracker.process(up_kpts)
-            time.sleep(0.08)
+            time.sleep(0.45)
 
 
         self.assertEqual(tracker.rep_count, 3)

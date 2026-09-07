@@ -44,17 +44,17 @@ def run_gemini_tests():
     # ----------------------------------------------------
     # TEST 3: Minimal Gemini API Request
     # ----------------------------------------------------
-    print("\n[TEST 3] Sending minimal test request to Gemini API (gemini-3.6-flash)...")
+    print("\n[TEST 3] Sending minimal test request to Gemini API (gemini-2.5-flash)...")
     test_prompt = "Reply with exactly: GEMINI CONNECTION WORKING"
     response = client.models.generate_content(
-        model="gemini-3.6-flash",
+        model="gemini-2.5-flash",
         contents=test_prompt
     )
     assert response and response.text, "Gemini API returned an empty response!"
     resp_text = response.text.strip()
     print(f"  - Response snippet: '{resp_text}'")
     assert "GEMINI CONNECTION WORKING" in resp_text.upper(), f"Unexpected API response text: '{resp_text}'"
-    print("[PASS] Test 3: Real Gemini API request succeeded with model gemini-3.6-flash.")
+    print("[PASS] Test 3: Real Gemini API request succeeded with model gemini-2.5-flash.")
 
     # ----------------------------------------------------
     # TEST 4: AI Fitness Assistant Answer Fitness Question

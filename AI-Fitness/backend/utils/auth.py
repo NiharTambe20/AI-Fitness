@@ -5,8 +5,19 @@ import time
 import json
 import base64
 from typing import Optional, Tuple
-
-SECRET_KEY = os.environ.get("FITQUEST_SECRET_KEY", "fitquest_super_secret_jwt_key_2026_safe")
+def get_secret_key() -> str:
+    """
+    Retrieves the application secret key from settings or environment.
+    Fails safely with a RuntimeError if FITQUEST_SECRET_KEY is missing.
+    """
+    from backend.config import settings
+    key = settings.FITQUEST_SECRET_KEY or os.environ.get("FITQUEST_SECRET_KEY")
+    if not key or not key.strip():
+        raise RuntimeError(
+            "FITQUEST_SECRET_KEY environment variable is not configured. "
+            "Please set a secure FITQUEST_SECRET_KEY in your .env file or environment."
+        )
+    return key.strip()
 
 def hash_password(password: str) -> str:
     """
@@ -34,6 +45,7 @@ def create_access_token(user_id: int, expires_in_seconds: int = 86400 * 30) -> s
     """
     Creates a signed HMAC-SHA256 URL-safe session token containing user_id and expiration.
     """
+    secret_key = get_secret_key()
     header = {"alg": "HS256", "typ": "JWT"}
     payload = {
         "sub": str(user_id),
@@ -44,7 +56,7 @@ def create_access_token(user_id: int, expires_in_seconds: int = 86400 * 30) -> s
     payload_b64 = base64.urlsafe_b64encode(json.dumps(payload).encode("utf-8")).decode("utf-8").rstrip("=")
 
     signature_input = f"{header_b64}.{payload_b64}".encode("utf-8")
-    signature = hmac.new(SECRET_KEY.encode("utf-8"), signature_input, hashlib.sha256).digest()
+    signature = hmac.new(secret_key.encode("utf-8"), signature_input, hashlib.sha256).digest()
     sig_b64 = base64.urlsafe_b64encode(signature).decode("utf-8").rstrip("=")
 
     return f"{header_b64}.{payload_b64}.{sig_b64}"
@@ -56,11 +68,12 @@ def verify_access_token(token: str) -> Optional[int]:
     if not token or token.count(".") != 2:
         return None
     try:
+        secret_key = get_secret_key()
         parts = token.split(".")
         header_b64, payload_b64, sig_b64 = parts[0], parts[1], parts[2]
 
         signature_input = f"{header_b64}.{payload_b64}".encode("utf-8")
-        expected_sig = hmac.new(SECRET_KEY.encode("utf-8"), signature_input, hashlib.sha256).digest()
+        expected_sig = hmac.new(secret_key.encode("utf-8"), signature_input, hashlib.sha256).digest()
         expected_sig_b64 = base64.urlsafe_b64encode(expected_sig).decode("utf-8").rstrip("=")
 
         if not hmac.compare_digest(sig_b64, expected_sig_b64):

@@ -31,6 +31,12 @@ class WorkoutSessionModel(Base):
         back_populates="workout_session",
         cascade="all, delete-orphan"
     )
+    movement_fingerprint = relationship(
+        "MovementFingerprintModel",
+        back_populates="workout_session",
+        uselist=False,
+        cascade="all, delete-orphan"
+    )
 
 class FormLogModel(Base):
     """

@@ -17,21 +17,47 @@ Verifies:
 import unittest
 from datetime import datetime, timezone, timedelta
 from fastapi.testclient import TestClient
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
 
 from backend.main import app
-from backend.database import Base, engine, SessionLocal
+from backend.database import Base, get_db
 from backend.models import UserModel, PasswordResetTokenModel
 from backend.utils.auth import hash_reset_token
+
+# Setup isolated in-memory SQLite database
+TEST_DB_URL = "sqlite:///:memory:"
+test_engine = create_engine(
+    TEST_DB_URL,
+    connect_args={"check_same_thread": False},
+    poolclass=StaticPool
+)
+TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=test_engine)
+
+def override_get_db():
+    db = TestingSessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
 
 class TestForgotPasswordSystem(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        Base.metadata.create_all(bind=engine)
+        # Safety Guard: Ensure test only runs against SQLite
+        assert str(test_engine.url).startswith("sqlite"), "Safety guard: Tests must only run against SQLite!"
+        app.dependency_overrides[get_db] = override_get_db
+        Base.metadata.create_all(bind=test_engine)
         cls.client = TestClient(app)
 
+    @classmethod
+    def tearDownClass(cls):
+        app.dependency_overrides.pop(get_db, None)
+
     def setUp(self):
-        self.db = SessionLocal()
+        self.db = TestingSessionLocal()
         self.db.query(PasswordResetTokenModel).delete()
         self.db.query(UserModel).delete()
         self.db.commit()

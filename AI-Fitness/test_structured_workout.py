@@ -6,11 +6,14 @@ from fastapi.testclient import TestClient
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-
 from sqlalchemy.pool import StaticPool
+
+import os
+os.environ["FITQUEST_SECRET_KEY"] = "test_super_secret_isolation_suite_key_2026"
+
 from backend.database import Base, get_db, seed_exercises
 from backend.main import app
-import backend.models # Ensures all models are registered with Base metadata
+import backend.models
 from backend.models.user import UserModel
 from backend.models.exercise import ExerciseModel
 from backend.models.workout import WorkoutSessionModel
@@ -18,6 +21,7 @@ from backend.models.structured_workout import (
     StructuredWorkoutSessionModel,
     StructuredWorkoutSetModel
 )
+from backend.utils.auth import create_access_token, hash_password
 from backend.services.structured_workout_service import structured_workout_service
 from backend.services.analytics_service import analytics_service
 from backend.services.readiness_service import readiness_service
@@ -33,19 +37,17 @@ engine = create_engine(
 )
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-
 def override_get_db():
+    db = TestingSessionLocal()
     try:
-        db = TestingSessionLocal()
         yield db
     finally:
         db.close()
 
-app.dependency_overrides[get_db] = override_get_db
-
 class TestStructuredWorkouts(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
+        app.dependency_overrides[get_db] = override_get_db
         cls.ai_patcher = patch("backend.services.workout_service.ai_service.generate_coaching_for_session")
         cls.mock_ai = cls.ai_patcher.start()
         cls.mock_ai.return_value = ("Great workout set! Keep up the good form.", "Rule-Based Test Engine")
@@ -59,38 +61,18 @@ class TestStructuredWorkouts(unittest.TestCase):
             id=1,
             name="Structured Athlete",
             email="athlete_structured@fitquest.ai",
-            password_hash="hashed_pass_xyz"
+            password_hash=hash_password("hashed_pass_xyz")
         )
         cls.db.add(cls.user)
         cls.db.commit()
+        cls.token = create_access_token(1)
+        cls.headers = {"Authorization": f"Bearer {cls.token}"}
         cls.client = TestClient(app)
 
-
     @classmethod
     def tearDownClass(cls):
+        app.dependency_overrides.clear()
         cls.ai_patcher.stop()
-        cls.db.close()
-        Base.metadata.drop_all(bind=engine)
-
-
-
-
-
-        # Retrieve or create test user
-        cls.user = cls.db.query(UserModel).filter(UserModel.id == 1).first()
-        if not cls.user:
-            cls.user = UserModel(
-                id=1,
-                name="Structured Athlete",
-                email="athlete_structured@fitquest.ai",
-                password_hash="hashed_pass_xyz"
-            )
-            cls.db.add(cls.user)
-            cls.db.commit()
-
-
-    @classmethod
-    def tearDownClass(cls):
         cls.db.close()
         Base.metadata.drop_all(bind=engine)
 
@@ -109,7 +91,7 @@ class TestStructuredWorkouts(unittest.TestCase):
             "user_id": 1,
             "plan_id": 1
         }
-        response = self.client.post("/api/v1/structured-workouts/start", json=payload)
+        response = self.client.post("/api/v1/structured-workouts/start", json=payload, headers=self.headers)
         self.assertEqual(response.status_code, 201)
         data = response.json()
         self.assertEqual(data["plan_title"], "Full Body Foundation")
@@ -128,7 +110,7 @@ class TestStructuredWorkouts(unittest.TestCase):
                 {"exercise_id": 1, "target_sets": 2, "target_reps": 12}
             ]
         }
-        response = self.client.post("/api/v1/structured-workouts/start", json=payload)
+        response = self.client.post("/api/v1/structured-workouts/start", json=payload, headers=self.headers)
         self.assertEqual(response.status_code, 201)
         data = response.json()
         self.assertEqual(data["plan_title"], "Custom Upper Body Blast")
@@ -137,7 +119,7 @@ class TestStructuredWorkouts(unittest.TestCase):
 
     def test_04_log_set_result_updates_structured_and_standard_telemetry(self):
         """4. Logging a set creates standard WorkoutSessionModel entry and updates structured session."""
-        start_res = self.client.post("/api/v1/structured-workouts/start", json={"user_id": 1, "plan_id": 1}).json()
+        start_res = self.client.post("/api/v1/structured-workouts/start", json={"user_id": 1, "plan_id": 1}, headers=self.headers).json()
         sess_id = start_res["id"]
         ex = self.db.query(ExerciseModel).first()
         ex_id = ex.id if ex else 1
@@ -153,7 +135,7 @@ class TestStructuredWorkouts(unittest.TestCase):
             "form_scores_history": [1]*12,
             "feedback_events": ["Good Form"]
         }
-        res = self.client.post("/api/v1/structured-workouts/log-set", json=set_payload)
+        res = self.client.post("/api/v1/structured-workouts/log-set", json=set_payload, headers=self.headers)
         self.assertEqual(res.status_code, 201)
         set_data = res.json()
         self.assertIsNotNone(set_data["workout_session_id"])
@@ -166,7 +148,7 @@ class TestStructuredWorkouts(unittest.TestCase):
 
     def test_05_actual_reps_preserved_never_fabricated(self):
         """5. Actual reps (9/12) are recorded; target reps (12) are NEVER fabricated."""
-        start_res = self.client.post("/api/v1/structured-workouts/start", json={"user_id": 1, "plan_id": 1}).json()
+        start_res = self.client.post("/api/v1/structured-workouts/start", json={"user_id": 1, "plan_id": 1}, headers=self.headers).json()
         sess_id = start_res["id"]
         ex = self.db.query(ExerciseModel).first()
         ex_id = ex.id if ex else 1
@@ -180,16 +162,16 @@ class TestStructuredWorkouts(unittest.TestCase):
             "duration_sec": 28,
             "form_score": 90.0
         }
-        res = self.client.post("/api/v1/structured-workouts/log-set", json=set_payload).json()
+        res = self.client.post("/api/v1/structured-workouts/log-set", json=set_payload, headers=self.headers).json()
         self.assertEqual(res["actual_reps"], 9)
         self.assertEqual(res["target_reps"], 12)
 
-        summary = self.client.get(f"/api/v1/structured-workouts/summary/{sess_id}").json()
+        summary = self.client.get(f"/api/v1/structured-workouts/summary/{sess_id}", headers=self.headers).json()
         self.assertEqual(summary["total_actual_reps"], 9)
 
     def test_06_zero_rep_set_creates_valid_record_with_zero_reps(self):
         """6. Zero-rep set (0/12) is recorded with reps=0 and form_score=0.0."""
-        start_res = self.client.post("/api/v1/structured-workouts/start", json={"user_id": 1, "plan_id": 1}).json()
+        start_res = self.client.post("/api/v1/structured-workouts/start", json={"user_id": 1, "plan_id": 1}, headers=self.headers).json()
         sess_id = start_res["id"]
         ex = self.db.query(ExerciseModel).first()
         ex_id = ex.id if ex else 1
@@ -203,13 +185,13 @@ class TestStructuredWorkouts(unittest.TestCase):
             "duration_sec": 15,
             "form_score": 90.0
         }
-        res = self.client.post("/api/v1/structured-workouts/log-set", json=set_payload).json()
+        res = self.client.post("/api/v1/structured-workouts/log-set", json=set_payload, headers=self.headers).json()
         self.assertEqual(res["actual_reps"], 0)
         self.assertEqual(res["form_score"], 0.0)
 
     def test_07_complete_full_structured_workout(self):
         """7. Complete entire multi-exercise structured workout routine."""
-        start_res = self.client.post("/api/v1/structured-workouts/start", json={"user_id": 1, "plan_id": 1}).json()
+        start_res = self.client.post("/api/v1/structured-workouts/start", json={"user_id": 1, "plan_id": 1}, headers=self.headers).json()
         sess_id = start_res["id"]
 
         ex_list = self.db.query(ExerciseModel).limit(4).all()
@@ -222,9 +204,9 @@ class TestStructuredWorkouts(unittest.TestCase):
                 "actual_reps": 12,
                 "duration_sec": 30,
                 "form_score": 92.0
-            })
+            }, headers=self.headers)
 
-        complete_res = self.client.post(f"/api/v1/structured-workouts/complete/{sess_id}")
+        complete_res = self.client.post(f"/api/v1/structured-workouts/complete/{sess_id}", headers=self.headers)
         self.assertEqual(complete_res.status_code, 200)
         summary = complete_res.json()
         self.assertEqual(summary["status"], "COMPLETED")
@@ -265,7 +247,7 @@ class TestStructuredWorkouts(unittest.TestCase):
                 "form_score": 88.0
             }
         }
-        res = self.client.post("/api/v1/workouts", json=payload)
+        res = self.client.post("/api/v1/workouts", json=payload, headers=self.headers)
         self.assertEqual(res.status_code, 201)
         self.assertEqual(res.json()["repetitions"], 10)
 

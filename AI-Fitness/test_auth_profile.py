@@ -14,21 +14,46 @@ Verifies:
 import sys
 import unittest
 from fastapi.testclient import TestClient
+from sqlalchemy import create_engine
+from sqlalchemy.pool import StaticPool
+from sqlalchemy.orm import sessionmaker
 
 from backend.main import app
-from backend.database import get_db, Base, engine, SessionLocal
+from backend.database import get_db, Base
 from backend.models import UserModel, WorkoutSessionModel, ExerciseModel
 from backend.utils.auth import hash_password, verify_password, create_access_token, verify_access_token
+
+# Isolated in-memory SQLite database
+TEST_DATABASE_URL = "sqlite:///:memory:"
+test_engine = create_engine(
+    TEST_DATABASE_URL,
+    connect_args={"check_same_thread": False},
+    poolclass=StaticPool
+)
+TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=test_engine)
+
+def override_get_db():
+    db = TestingSessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
 
 class TestAuthAndProfileSystem(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        Base.metadata.create_all(bind=engine)
+        app.dependency_overrides[get_db] = override_get_db
+        Base.metadata.create_all(bind=test_engine)
         cls.client = TestClient(app)
 
+    @classmethod
+    def tearDownClass(cls):
+        app.dependency_overrides.clear()
+        Base.metadata.drop_all(bind=test_engine)
+
     def setUp(self):
-        self.db = SessionLocal()
+        self.db = TestingSessionLocal()
         # Clean test tables
         self.db.query(WorkoutSessionModel).delete()
         self.db.query(UserModel).delete()
@@ -39,9 +64,8 @@ class TestAuthAndProfileSystem(unittest.TestCase):
         if not ex:
             ex = ExerciseModel(
                 name="Squat",
-                category="Compound",
                 difficulty="Intermediate",
-                target_muscle_group="Legs & Core",
+                muscle_group="Legs & Core",
                 description="Squat test exercise"
             )
             self.db.add(ex)
@@ -197,7 +221,9 @@ class TestAuthAndProfileSystem(unittest.TestCase):
             "email": "alpha@fitquest.ai",
             "password": "PasswordAlpha123"
         })
+        token_a = res_a.json()["access_token"]
         user_a_id = res_a.json()["user"]["id"]
+        headers_a = {"Authorization": f"Bearer {token_a}"}
 
         # User B
         res_b = self.client.post("/api/v1/auth/register", json={
@@ -205,10 +231,12 @@ class TestAuthAndProfileSystem(unittest.TestCase):
             "email": "beta@fitquest.ai",
             "password": "PasswordBeta123"
         })
+        token_b = res_b.json()["access_token"]
         user_b_id = res_b.json()["user"]["id"]
+        headers_b = {"Authorization": f"Bearer {token_b}"}
 
         # User A performs Squats
-        self.client.post("/api/v1/workouts", json={
+        res_post = self.client.post("/api/v1/workouts", json={
             "session_data": {
                 "user_id": user_a_id,
                 "exercise_id": self.test_exercise.id,
@@ -216,16 +244,25 @@ class TestAuthAndProfileSystem(unittest.TestCase):
                 "duration_sec": 45,
                 "form_score": 92.5
             }
-        })
+        }, headers=headers_a)
+        self.assertEqual(res_post.status_code, 201)
 
-        # Fetch User A's history
-        hist_a = self.client.get(f"/api/v1/workouts/user/{user_a_id}").json()
+        # Fetch User A's history with User A's token
+        res_hist_a = self.client.get(f"/api/v1/workouts/user/{user_a_id}", headers=headers_a)
+        self.assertEqual(res_hist_a.status_code, 200)
+        hist_a = res_hist_a.json()
         self.assertEqual(len(hist_a), 1)
         self.assertEqual(hist_a[0]["repetitions"], 12)
 
-        # Fetch User B's history
-        hist_b = self.client.get(f"/api/v1/workouts/user/{user_b_id}").json()
+        # Fetch User B's history with User B's token
+        res_hist_b = self.client.get(f"/api/v1/workouts/user/{user_b_id}", headers=headers_b)
+        self.assertEqual(res_hist_b.status_code, 200)
+        hist_b = res_hist_b.json()
         self.assertEqual(len(hist_b), 0, "User B should NOT see User A's workouts!")
+
+        # User A attempts to access User B's history -> 403 Forbidden
+        res_cross = self.client.get(f"/api/v1/workouts/user/{user_b_id}", headers=headers_a)
+        self.assertEqual(res_cross.status_code, 403, "User A must not be able to read User B's workouts")
 
 if __name__ == "__main__":
     unittest.main()

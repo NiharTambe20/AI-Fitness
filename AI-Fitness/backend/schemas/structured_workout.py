@@ -1,6 +1,6 @@
 from datetime import datetime
 from typing import List, Optional
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 class PlanExerciseResponse(BaseModel):
     id: int
@@ -12,8 +12,7 @@ class PlanExerciseResponse(BaseModel):
     target_duration_sec: int
     rest_duration_sec: int
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class StructuredWorkoutPlanResponse(BaseModel):
     id: int
@@ -24,11 +23,10 @@ class StructuredWorkoutPlanResponse(BaseModel):
     estimated_duration_min: int
     exercises: List[PlanExerciseResponse]
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class StructuredWorkoutStartRequest(BaseModel):
-    user_id: int
+    user_id: Optional[int] = None
     plan_id: Optional[int] = None
     title: Optional[str] = None
     category: Optional[str] = "Full Body"
@@ -58,8 +56,7 @@ class StructuredWorkoutSetResponse(BaseModel):
     form_score: float
     status: str
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class StructuredWorkoutSummaryResponse(BaseModel):
     id: int
@@ -77,5 +74,4 @@ class StructuredWorkoutSummaryResponse(BaseModel):
     completed_at: Optional[datetime] = None
     sets: List[StructuredWorkoutSetResponse] = []
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)

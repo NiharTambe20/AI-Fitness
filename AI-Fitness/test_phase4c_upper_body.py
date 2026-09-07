@@ -33,12 +33,12 @@ class TestPhase4CUpperBodyTrackers(unittest.TestCase):
             "left_wrist":    {"x": 100, "y": 80,  "conf": 0.9, "valid": True},  # Raised 70px overhead
         }
 
-        for _ in range(6):
+        for _ in range(8):
             tracker.process(lowered_kpts)
-        for _ in range(6):
+        for _ in range(8):
             tracker.process(pressed_kpts)
-        time.sleep(0.12)
-        for _ in range(6):
+        time.sleep(0.45)
+        for _ in range(8):
             res_rep = tracker.process(lowered_kpts)
 
         self.assertEqual(tracker.rep_count, 1)
@@ -62,12 +62,12 @@ class TestPhase4CUpperBodyTrackers(unittest.TestCase):
             "left_wrist":    {"x": 250, "y": 200, "conf": 0.9, "valid": True},  # Raised 150px forward
         }
 
-        for _ in range(6):
+        for _ in range(8):
             tracker.process(lowered_kpts)
-        for _ in range(6):
+        for _ in range(8):
             tracker.process(raised_kpts)
-        time.sleep(0.12)
-        for _ in range(6):
+        time.sleep(0.45)
+        for _ in range(8):
             res = tracker.process(lowered_kpts)
 
         self.assertEqual(tracker.rep_count, 1)
@@ -89,12 +89,12 @@ class TestPhase4CUpperBodyTrackers(unittest.TestCase):
             "left_wrist":    {"x": 300, "y": 200, "conf": 0.9, "valid": True},  # Raised 200px sideways
         }
 
-        for _ in range(6):
+        for _ in range(8):
             tracker.process(lowered_kpts)
-        for _ in range(6):
+        for _ in range(8):
             tracker.process(raised_kpts)
-        time.sleep(0.12)
-        for _ in range(6):
+        time.sleep(0.45)
+        for _ in range(8):
             res = tracker.process(lowered_kpts)
 
         self.assertEqual(tracker.rep_count, 1)
@@ -126,12 +126,12 @@ class TestPhase4CUpperBodyTrackers(unittest.TestCase):
         res_drift = tracker.process(drift_kpts)
         self.assertEqual(res_drift["feedback_code"], "UPPER_ARM_MOVING")
 
-        for _ in range(6):
+        for _ in range(8):
             tracker.process(bent_kpts)
-        for _ in range(6):
+        for _ in range(8):
             tracker.process(extended_kpts)
-        time.sleep(0.12)
-        for _ in range(6):
+        time.sleep(0.45)
+        for _ in range(8):
             res = tracker.process(bent_kpts)
 
         self.assertEqual(tracker.rep_count, 1)

@@ -82,3 +82,7 @@ htmlcov/
 *.sqlite
 *.sqlite3
 *.db
+*.db.backup.*
+*.db-journal
+*.db-wal
+*.db-shm.DS_Store

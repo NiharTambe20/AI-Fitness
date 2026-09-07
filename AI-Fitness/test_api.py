@@ -5,11 +5,40 @@ Test suite for Phase 4 REST API endpoints & AI orchestration service.
 
 from unittest.mock import patch
 from fastapi.testclient import TestClient
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
+
 from backend.main import app
-from backend.database import init_db
+from backend.database import Base, get_db, seed_exercises
+
+# Setup isolated in-memory SQLite database
+TEST_DB_URL = "sqlite:///:memory:"
+test_engine = create_engine(
+    TEST_DB_URL,
+    connect_args={"check_same_thread": False},
+    poolclass=StaticPool
+)
+TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=test_engine)
+
+def override_get_db():
+    db = TestingSessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
 
 def test_api_endpoints():
     print("[TEST] Initializing REST API & Service Layer test suite...")
+
+    # Safety Guard: Ensure test only runs against SQLite
+    assert str(test_engine.url).startswith("sqlite"), "Safety guard: Tests must only run against SQLite!"
+
+    app.dependency_overrides[get_db] = override_get_db
+    Base.metadata.create_all(bind=test_engine)
+    init_sess = TestingSessionLocal()
+    seed_exercises(init_sess)
+    init_sess.close()
 
     # Import ai_service to patch assistant methods
     from backend.services.ai_service import ai_service
@@ -18,9 +47,6 @@ def test_api_endpoints():
     with patch("backend.services.workout_service.ai_service.generate_coaching_for_session", return_value=("Great workout set!", "Rule-Based Test Engine")), \
          patch.object(ai_service.assistant, "generate_workout_feedback", return_value="Good squat form! Keep your back straight."), \
          patch.object(ai_service.assistant, "answer_fitness_question", return_value="Keep your elbows tucked during bicep curls."):
-
-        # Initialize DB & Seed exercises
-        init_db()
 
         client = TestClient(app)
 
@@ -39,27 +65,32 @@ def test_api_endpoints():
         assert len(exercises) == 20, f"Expected 20 seeded exercises, found {len(exercises)}"
         print(f"[PASS] GET /api/v1/exercises verified ({len(exercises)} exercises returned).")
 
-        # 3. Test User Creation Endpoint
+        # 3. Test User Registration Endpoint
+        import time
+        test_email = f"alex.strength_{int(time.time() * 1000)}@example.com"
         user_payload = {
             "name": "Alex Strength",
-            "email": "alex.strength@example.com",
+            "email": test_email,
+            "password": "StrongPassword123!",
             "fitness_goal": "Hypertrophy",
             "experience_level": "Intermediate"
         }
-        res_user = client.post("/api/v1/users", json=user_payload)
-        assert res_user.status_code == 201, f"User creation failed: {res_user.text}"
-        user_data = res_user.json()
-        user_id = user_data["id"]
-        assert user_data["name"] == "Alex Strength", "User name mismatch"
-        print(f"[PASS] POST /api/v1/users created user ID {user_id}.")
+        res_user = client.post("/api/v1/auth/register", json=user_payload)
+        assert res_user.status_code == 201, f"User registration failed: {res_user.text}"
+        auth_data = res_user.json()
+        user_id = auth_data["user"]["id"]
+        auth_token = auth_data["access_token"]
+        auth_headers = {"Authorization": f"Bearer {auth_token}"}
+        assert auth_data["user"]["name"] == "Alex Strength", "User name mismatch"
+        print(f"[PASS] POST /api/v1/auth/register created user ID {user_id}.")
 
-        # 4. Test Get User Endpoint
-        res_get_user = client.get(f"/api/v1/users/{user_id}")
+        # 4. Test Get User Endpoint (Authenticated)
+        res_get_user = client.get(f"/api/v1/users/{user_id}", headers=auth_headers)
         assert res_get_user.status_code == 200, "Get user failed"
-        assert res_get_user.json()["email"] == "alex.strength@example.com"
+        assert res_get_user.json()["email"] == test_email
         print("[PASS] GET /api/v1/users/{user_id} verified.")
 
-        # 5. Test Workout Ingestion & AI Coaching Orchestration Endpoint
+        # 5. Test Workout Ingestion & AI Coaching Orchestration Endpoint (Authenticated)
         workout_payload = {
             "session_data": {
                 "user_id": user_id,
@@ -71,7 +102,7 @@ def test_api_endpoints():
             "form_scores_history": [1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1],
             "feedback_events": ["Curl higher on rep 6"]
         }
-        res_workout = client.post("/api/v1/workouts", json=workout_payload)
+        res_workout = client.post("/api/v1/workouts", json=workout_payload, headers=auth_headers)
         assert res_workout.status_code == 201, f"Workout ingestion failed: {res_workout.text}"
         session_data = res_workout.json()
         session_id = session_data["id"]
@@ -80,14 +111,14 @@ def test_api_endpoints():
         assert len(session_data["form_logs"]) == 1, "Form log event missing"
         print(f"[PASS] POST /api/v1/workouts ingested session ID {session_id} with form logs.")
 
-        # 6. Test GET Workout Session Details Endpoint
-        res_session = client.get(f"/api/v1/workouts/{session_id}")
+        # 6. Test GET Workout Session Details Endpoint (Authenticated)
+        res_session = client.get(f"/api/v1/workouts/{session_id}", headers=auth_headers)
         assert res_session.status_code == 200, "Get workout session failed"
         assert res_session.json()["id"] == session_id
         print("[PASS] GET /api/v1/workouts/{session_id} verified.")
 
-        # 7. Test GET User Workout History Endpoint
-        res_history = client.get(f"/api/v1/workouts/user/{user_id}")
+        # 7. Test GET User Workout History Endpoint (Authenticated)
+        res_history = client.get(f"/api/v1/workouts/user/{user_id}", headers=auth_headers)
         assert res_history.status_code == 200, "Get user workout history failed"
         assert len(res_history.json()) >= 1, "Workout history should contain at least 1 session"
         print("[PASS] GET /api/v1/workouts/user/{user_id} verified.")

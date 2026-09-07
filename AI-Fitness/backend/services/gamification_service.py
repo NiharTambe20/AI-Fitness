@@ -100,8 +100,6 @@ class GamificationService:
         Calculates current_streak, longest_streak, total_workout_days, total_valid_workouts,
         today_completed, and active_dates from valid workout sessions.
         """
-        ref_date = target_date or date.today()
-
         # Extract unique calendar dates for valid workouts
         active_dates_list: List[date] = sorted(list({
             s.started_at.date() if hasattr(s.started_at, 'date') else s.started_at
@@ -111,6 +109,18 @@ class GamificationService:
         total_valid_workouts = len(sessions)
         total_workout_days = len(active_dates_list)
         active_date_set = set(active_dates_list)
+
+        utc_today = datetime.now(timezone.utc).date()
+        local_today = date.today()
+        if target_date:
+            ref_date = target_date
+        elif local_today in active_date_set:
+            ref_date = local_today
+        elif utc_today in active_date_set:
+            ref_date = utc_today
+        else:
+            ref_date = local_today
+
         today_completed = ref_date in active_date_set
 
         if not active_dates_list:

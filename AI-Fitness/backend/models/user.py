@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from sqlalchemy import Column, Integer, String, Float, DateTime
+from sqlalchemy import Column, Integer, String, Float, DateTime, Boolean
 from sqlalchemy.orm import relationship
 from backend.database import Base
 
@@ -19,6 +19,7 @@ class UserModel(Base):
     height = Column(Float, nullable=True)
     weight = Column(Float, nullable=True)
     gender = Column(String(20), nullable=True)
+    leaderboard_visible = Column(Boolean, default=True, nullable=False)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
     updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc), nullable=False)
 
@@ -43,6 +44,12 @@ class UserModel(Base):
         back_populates="user",
         cascade="all, delete-orphan"
     )
+    movement_fingerprints = relationship(
+        "MovementFingerprintModel",
+        back_populates="user",
+        cascade="all, delete-orphan"
+    )
+
 
 
 

@@ -116,8 +116,8 @@ function renderProgressCharts(trends) {
   // 2. Render Form Accuracy Score Line Chart
   const ctxForm = formCanvas.getContext('2d');
   const gradientForm = ctxForm.createLinearGradient(0, 0, 0, 260);
-  gradientForm.addColorStop(0, 'rgba(184, 255, 61, 0.25)');
-  gradientForm.addColorStop(1, 'rgba(184, 255, 61, 0.0)');
+  gradientForm.addColorStop(0, 'rgba(132, 204, 22, 0.25)');
+  gradientForm.addColorStop(1, 'rgba(132, 204, 22, 0.0)');
 
   formChartInstance = new Chart(ctxForm, {
     type: 'line',
@@ -126,12 +126,12 @@ function renderProgressCharts(trends) {
       datasets: [{
         label: 'Avg Form Accuracy (%)',
         data: formScores.length > 0 ? formScores : [0],
-        borderColor: '#b8ff3d',
+        borderColor: '#65a30d',
         borderWidth: 2,
         backgroundColor: gradientForm,
         fill: true,
         tension: 0.3,
-        pointBackgroundColor: '#b8ff3d',
+        pointBackgroundColor: '#65a30d',
         pointRadius: 4,
         pointHoverRadius: 6
       }]
@@ -143,21 +143,21 @@ function renderProgressCharts(trends) {
         y: {
           min: 0,
           max: 100,
-          grid: { color: 'rgba(255, 255, 255, 0.06)' },
-          ticks: { color: '#a3a3a3', font: { family: 'Inter' } }
+          grid: { color: '#e2e8f0' },
+          ticks: { color: '#64748b', font: { family: 'Inter' } }
         },
         x: {
           grid: { display: false },
-          ticks: { color: '#a3a3a3', font: { family: 'Inter' } }
+          ticks: { color: '#64748b', font: { family: 'Inter' } }
         }
       },
       plugins: {
         legend: { display: false },
         tooltip: {
-          backgroundColor: '#141414',
-          titleColor: '#f5f5f5',
-          bodyColor: '#b8ff3d',
-          borderColor: '#2a2a2a',
+          backgroundColor: '#ffffff',
+          titleColor: '#0f172a',
+          bodyColor: '#4d7c0f',
+          borderColor: '#e2e8f0',
           borderWidth: 1,
           padding: 10
         }
@@ -175,7 +175,7 @@ function renderProgressCharts(trends) {
       datasets: [{
         label: 'Total Repetitions',
         data: repVolumes.length > 0 ? repVolumes : [0],
-        backgroundColor: '#b8ff3d',
+        backgroundColor: '#84cc16',
         borderRadius: 4,
         borderSkipped: false
       }]
@@ -186,21 +186,21 @@ function renderProgressCharts(trends) {
       scales: {
         y: {
           beginAtZero: true,
-          grid: { color: 'rgba(255, 255, 255, 0.06)' },
-          ticks: { color: '#a3a3a3', font: { family: 'Inter' } }
+          grid: { color: '#e2e8f0' },
+          ticks: { color: '#64748b', font: { family: 'Inter' } }
         },
         x: {
           grid: { display: false },
-          ticks: { color: '#a3a3a3', font: { family: 'Inter' } }
+          ticks: { color: '#64748b', font: { family: 'Inter' } }
         }
       },
       plugins: {
         legend: { display: false },
         tooltip: {
-          backgroundColor: '#141414',
-          titleColor: '#f5f5f5',
-          bodyColor: '#b8ff3d',
-          borderColor: '#2a2a2a',
+          backgroundColor: '#ffffff',
+          titleColor: '#0f172a',
+          bodyColor: '#4d7c0f',
+          borderColor: '#e2e8f0',
           borderWidth: 1,
           padding: 10
         }

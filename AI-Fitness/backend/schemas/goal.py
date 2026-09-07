@@ -1,6 +1,6 @@
 from datetime import datetime
 from typing import Optional
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, ConfigDict
 
 VALID_GOAL_TYPES = {"REPETITION", "FREQUENCY", "FORM_SCORE", "EXERCISE_PR"}
 VALID_TIME_FRAMES = {"WEEKLY", "MONTHLY", "ALL_TIME"}
@@ -58,8 +58,7 @@ class GoalResponse(BaseModel):
     completed_at: Optional[datetime] = None
     created_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class GoalProgressResponse(BaseModel):
     id: int
@@ -78,5 +77,4 @@ class GoalProgressResponse(BaseModel):
     created_at: datetime
     days_remaining: Optional[int] = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)

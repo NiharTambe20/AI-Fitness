@@ -36,12 +36,12 @@ class TestPhase4BLowerBodyTrackers(unittest.TestCase):
             "left_knee":     {"x": 180, "y": 250, "conf": 0.9, "valid": True},  # Bent < 110°
             "left_ankle":    {"x": 100, "y": 400, "conf": 0.9, "valid": True},
         }
-        for _ in range(3):
+        for _ in range(8):
             tracker.process(stand_kpts)
-        for _ in range(3):
+        for _ in range(8):
             tracker.process(squat_kpts)
-        time.sleep(0.12)
-        for _ in range(3):
+        time.sleep(0.45)
+        for _ in range(8):
             res_rep = tracker.process(stand_kpts)
 
         self.assertEqual(tracker.rep_count, 1)
@@ -63,12 +63,12 @@ class TestPhase4BLowerBodyTrackers(unittest.TestCase):
             "left_ankle":    {"x": 100, "y": 400, "conf": 0.9, "valid": True},
         }
 
-        for _ in range(3):
+        for _ in range(8):
             tracker.process(stand_kpts)
-        for _ in range(3):
+        for _ in range(8):
             tracker.process(lunge_kpts)
-        time.sleep(0.12)
-        for _ in range(3):
+        time.sleep(0.45)
+        for _ in range(8):
             res = tracker.process(stand_kpts)
 
         self.assertEqual(tracker.rep_count, 1)
@@ -94,12 +94,12 @@ class TestPhase4BLowerBodyTrackers(unittest.TestCase):
             "right_ankle":{"x": 250, "y": 300, "conf": 0.9, "valid": True},
         }
 
-        for _ in range(3):
+        for _ in range(8):
             tracker.process(stand_kpts)
-        for _ in range(3):
+        for _ in range(8):
             tracker.process(side_lunge_kpts)
-        time.sleep(0.12)
-        for _ in range(3):
+        time.sleep(0.45)
+        for _ in range(8):
             res = tracker.process(stand_kpts)
 
         self.assertEqual(tracker.rep_count, 1)
@@ -130,12 +130,12 @@ class TestPhase4BLowerBodyTrackers(unittest.TestCase):
             "left_knee":     {"x": 450, "y": 100, "conf": 0.9, "valid": True},
         }
 
-        for _ in range(3):
+        for _ in range(8):
             tracker.process(down_kpts)
-        for _ in range(3):
+        for _ in range(8):
             tracker.process(bridge_kpts)
-        time.sleep(0.12)
-        for _ in range(3):
+        time.sleep(0.45)
+        for _ in range(8):
             res = tracker.process(down_kpts)
 
         self.assertEqual(tracker.rep_count, 1)
@@ -157,12 +157,12 @@ class TestPhase4BLowerBodyTrackers(unittest.TestCase):
             "left_ankle": {"x": 100, "y": 270, "conf": 0.9, "valid": True},  # Heel raised 30px
         }
 
-        for _ in range(6):
+        for _ in range(8):
             tracker.process(flat_kpts)
-        for _ in range(6):
+        for _ in range(8):
             tracker.process(raised_kpts)
-        time.sleep(0.12)
-        for _ in range(6):
+        time.sleep(0.45)
+        for _ in range(8):
             res = tracker.process(flat_kpts)
 
         self.assertEqual(tracker.rep_count, 1)

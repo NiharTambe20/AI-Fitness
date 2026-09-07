@@ -44,9 +44,10 @@ class TestPhase4DCoreTrackers(unittest.TestCase):
             "left_hip":      {"x": 250, "y": 100, "conf": 0.9, "valid": True},
             "left_ankle":    {"x": 400, "y": 100, "conf": 0.9, "valid": True},
         }
+        for _ in range(6):
+            tracker.process(valid_plank_kpts)
         tracker.last_increment_time = time.time() - 1.1
-        for _ in range(4):
-            res_valid = tracker.process(valid_plank_kpts)
+        res_valid = tracker.process(valid_plank_kpts)
         self.assertEqual(res_valid["feedback_code"], "GOOD_FORM")
         self.assertGreaterEqual(tracker.total_hold_sec, 1)
 
@@ -71,12 +72,12 @@ class TestPhase4DCoreTrackers(unittest.TestCase):
             "left_knee":     {"x": 300, "y": 100, "conf": 0.9, "valid": True},
         }
 
-        for _ in range(6):
+        for _ in range(8):
             tracker.process(down_kpts)
-        for _ in range(6):
+        for _ in range(8):
             tracker.process(up_kpts)
-        time.sleep(0.12)
-        for _ in range(6):
+        time.sleep(0.45)
+        for _ in range(8):
             res_rep = tracker.process(down_kpts)
 
         self.assertEqual(tracker.rep_count, 1)
@@ -97,12 +98,12 @@ class TestPhase4DCoreTrackers(unittest.TestCase):
             "left_knee":     {"x": 400, "y": 100, "conf": 0.9, "valid": True},
         }
 
-        for _ in range(6):
+        for _ in range(8):
             tracker.process(down_kpts)
-        for _ in range(6):
+        for _ in range(8):
             tracker.process(crunch_kpts)
-        time.sleep(0.12)
-        for _ in range(6):
+        time.sleep(0.45)
+        for _ in range(8):
             res_rep = tracker.process(down_kpts)
 
         self.assertEqual(tracker.rep_count, 1)
@@ -136,12 +137,12 @@ class TestPhase4DCoreTrackers(unittest.TestCase):
         self.assertEqual(res_bent["feedback_code"], "INSUFFICIENT_EXTENSION")
 
         tracker.state = "DOWN"
-        for _ in range(6):
+        for _ in range(8):
             tracker.process(down_kpts)
-        for _ in range(6):
+        for _ in range(8):
             tracker.process(raised_kpts)
-        time.sleep(0.12)
-        for _ in range(6):
+        time.sleep(0.45)
+        for _ in range(8):
             res_rep = tracker.process(down_kpts)
 
         self.assertEqual(tracker.rep_count, 1)
@@ -173,11 +174,11 @@ class TestPhase4DCoreTrackers(unittest.TestCase):
             "right_wrist":    {"x": 50,  "y": 150, "conf": 0.9, "valid": True},  # Wrists displaced 100px
         }
 
-        for _ in range(6):
+        for _ in range(8):
             tracker.process(center_kpts)
-        for _ in range(6):
+        for _ in range(8):
             tracker.process(twist_kpts)
-        time.sleep(0.12)
+        time.sleep(0.45)
         for _ in range(8):
             res_rep = tracker.process(center_kpts)
 
@@ -206,12 +207,12 @@ class TestPhase4DCoreTrackers(unittest.TestCase):
             "right_knee":    {"x": 230, "y": 100, "conf": 0.9, "valid": True},  # Opposite elbow & knee meet (dist = 30px <= 80px)
         }
 
-        for _ in range(6):
+        for _ in range(8):
             tracker.process(extended_kpts)
-        for _ in range(6):
+        for _ in range(8):
             tracker.process(crunched_kpts)
-        time.sleep(0.12)
-        for _ in range(6):
+        time.sleep(0.45)
+        for _ in range(8):
             res_rep = tracker.process(extended_kpts)
 
         self.assertEqual(tracker.rep_count, 1)

@@ -3,7 +3,7 @@
  * Manages Registration, Login, Token Storage, Persistent Sessions, Profile Updates, and Protected Route Redirection.
  */
 
-const AUTH_API_BASE = 'http://127.0.0.1:8000/api/v1/auth';
+const AUTH_API_BASE = (window.API_BASE || 'http://127.0.0.1:8000/api/v1') + '/auth';
 
 // State
 let currentUser = null;
@@ -262,7 +262,8 @@ function initAuthUI() {
         age: document.getElementById('editAge').value ? parseInt(document.getElementById('editAge').value) : null,
         height: document.getElementById('editHeight').value ? parseFloat(document.getElementById('editHeight').value) : null,
         weight: document.getElementById('editWeight').value ? parseFloat(document.getElementById('editWeight').value) : null,
-        gender: document.getElementById('editGender').value || null
+        gender: document.getElementById('editGender').value || null,
+        leaderboard_visible: document.getElementById('editLeaderboardVisible') ? document.getElementById('editLeaderboardVisible').checked : true
       };
 
       try {
@@ -354,8 +355,14 @@ async function logoutUser() {
  * Switches UI to Authenticated state
  */
 function showAuthenticatedState() {
-  document.getElementById('authView').style.display = 'none';
-  document.getElementById('appMainWrapper').style.display = 'block';
+  const landingView = document.getElementById('landingView');
+  if (landingView) landingView.style.display = 'none';
+
+  const authView = document.getElementById('authView');
+  if (authView) authView.style.display = 'none';
+
+  const appMain = document.getElementById('appMainWrapper');
+  if (appMain) appMain.style.display = 'block';
 
   updateUserNavBadge();
   renderProfilePage();
@@ -381,12 +388,23 @@ function showAuthenticatedState() {
  * Switches UI to Unauthenticated state
  */
 function showUnauthenticatedState() {
-  document.getElementById('appMainWrapper').style.display = 'none';
-  document.getElementById('authView').style.display = 'block';
+  const landingView = document.getElementById('landingView');
+  if (landingView && landingView.style.display !== 'none' && !landingView.classList.contains('fade-out')) {
+    // Landing page is displaying, preserve landing page display
+    return;
+  }
+
+  const appMain = document.getElementById('appMainWrapper');
+  if (appMain) appMain.style.display = 'none';
+
+  const authView = document.getElementById('authView');
+  if (authView) {
+    authView.style.display = 'block';
+    authView.classList.add('active');
+  }
 
   const viewPanels = document.querySelectorAll('.view-panel');
   viewPanels.forEach(panel => panel.classList.remove('active'));
-  document.getElementById('authView').classList.add('active');
 }
 
 /**
@@ -396,22 +414,51 @@ function updateUserNavBadge() {
   const userBadge = document.getElementById('userNavBadge');
   if (!userBadge || !currentUser) return;
 
+  const initial = (currentUser.name && currentUser.name.trim().length > 0)
+    ? currentUser.name.trim().charAt(0).toUpperCase()
+    : 'U';
+
   userBadge.innerHTML = `
     <div class="user-dropdown-container">
-      <button class="user-dropdown-trigger" onclick="toggleUserDropdown(event)">
-        <i class="fa-solid fa-circle-user"></i> ${escapeHTML(currentUser.name)} <i class="fa-solid fa-caret-down"></i>
-      </button>
-      <div id="userDropdownMenu" class="user-dropdown-menu">
-        <div class="dropdown-header">
-          <strong>${escapeHTML(currentUser.name)}</strong>
-          <span class="dropdown-email">${escapeHTML(currentUser.email)}</span>
+      <button class="user-profile-trigger" id="userProfileTrigger" onclick="toggleUserDropdown(event)" aria-expanded="false" aria-label="User profile menu">
+        <div class="profile-avatar-circle">
+          <span>${escapeHTML(initial)}</span>
+          <span class="avatar-status-dot"></span>
         </div>
+        <div class="profile-trigger-info">
+          <span class="profile-trigger-name">${escapeHTML(currentUser.name)}</span>
+          <span class="profile-trigger-email">${escapeHTML(currentUser.email)}</span>
+        </div>
+        <i class="fa-solid fa-chevron-down profile-trigger-chevron"></i>
+      </button>
+
+      <div id="userDropdownMenu" class="user-dropdown-menu" role="menu">
+        <div class="dropdown-user-header">
+          <div class="dropdown-avatar-circle">${escapeHTML(initial)}</div>
+          <div class="dropdown-user-meta">
+            <span class="dropdown-user-name">${escapeHTML(currentUser.name)}</span>
+            <span class="dropdown-user-email">${escapeHTML(currentUser.email)}</span>
+            <span class="dropdown-user-goal-tag"><i class="fa-solid fa-bullseye"></i> ${escapeHTML(currentUser.fitness_goal || 'General Fitness')}</span>
+          </div>
+        </div>
+
         <div class="dropdown-divider"></div>
-        <button class="dropdown-item" onclick="openProfileTab()">
-          <i class="fa-solid fa-address-card"></i> My Profile
+
+        <button class="dropdown-action-btn" onclick="openProfileTab()" role="menuitem">
+          <div class="dropdown-btn-icon"><i class="fa-solid fa-address-card"></i></div>
+          <div class="dropdown-btn-text">
+            <span>My Profile</span>
+            <small>View & edit account details</small>
+          </div>
+          <i class="fa-solid fa-arrow-right dropdown-btn-arrow"></i>
         </button>
-        <button class="dropdown-item danger" onclick="logoutUser()">
-          <i class="fa-solid fa-right-from-bracket"></i> Logout
+
+        <button class="dropdown-action-btn danger" onclick="logoutUser()" role="menuitem">
+          <div class="dropdown-btn-icon danger"><i class="fa-solid fa-right-from-bracket"></i></div>
+          <div class="dropdown-btn-text">
+            <span>Log Out</span>
+            <small>End active session</small>
+          </div>
         </button>
       </div>
     </div>
@@ -422,38 +469,135 @@ function updateUserNavBadge() {
  * Toggles header user profile dropdown menu
  */
 function toggleUserDropdown(event) {
-  event.stopPropagation();
+  if (event) event.stopPropagation();
   const menu = document.getElementById('userDropdownMenu');
+  const trigger = document.getElementById('userProfileTrigger');
   if (menu) {
-    menu.classList.toggle('show');
+    const isShowing = menu.classList.toggle('show');
+    if (trigger) {
+      trigger.classList.toggle('open', isShowing);
+      trigger.setAttribute('aria-expanded', isShowing ? 'true' : 'false');
+    }
   }
 }
 
 // Close dropdown on outside click
 document.addEventListener('click', (e) => {
   const menu = document.getElementById('userDropdownMenu');
+  const trigger = document.getElementById('userProfileTrigger');
   if (menu && menu.classList.contains('show')) {
-    menu.classList.remove('show');
+    if (!menu.contains(e.target) && (!trigger || !trigger.contains(e.target))) {
+      menu.classList.remove('show');
+      if (trigger) {
+        trigger.classList.remove('open');
+        trigger.setAttribute('aria-expanded', 'false');
+      }
+    }
   }
 });
 
 /**
- * Renders Profile Page view with authenticated user info
+ * Calculates Body Mass Index (BMI) dynamically from weight in kg and height in cm.
+ * Formula: BMI = weight (kg) / (height (m))^2
+ */
+function calculateBMI(weightKg, heightCm) {
+  if (!weightKg || !heightCm || isNaN(weightKg) || isNaN(heightCm) || heightCm <= 0 || weightKg <= 0) {
+    return null;
+  }
+  const heightM = heightCm / 100;
+  const bmi = weightKg / (heightM * heightM);
+  if (!isFinite(bmi) || isNaN(bmi) || bmi <= 0) {
+    return null;
+  }
+  return parseFloat(bmi.toFixed(1));
+}
+
+/**
+ * Returns neutral adult BMI classification label and CSS badge class.
+ * Categories:
+ *   < 18.5       -> Underweight
+ *   18.5 - 24.9  -> Normal Range
+ *   25.0 - 29.9  -> Overweight
+ *   >= 30.0      -> Obesity
+ */
+function getBMICategory(bmi) {
+  if (bmi === null || bmi === undefined || isNaN(bmi)) {
+    return { label: 'Add Height & Weight', class: 'bmi-na' };
+  }
+  if (bmi < 18.5) {
+    return { label: 'Underweight', class: 'bmi-underweight' };
+  } else if (bmi <= 24.9) {
+    return { label: 'Normal Range', class: 'bmi-normal' };
+  } else if (bmi <= 29.9) {
+    return { label: 'Overweight', class: 'bmi-overweight' };
+  } else {
+    return { label: 'Obesity', class: 'bmi-obesity' };
+  }
+}
+
+/**
+ * Renders Profile Page view with authenticated user info and dynamic Body Metrics / BMI
  */
 function renderProfilePage() {
   if (!currentUser) return;
 
-  document.getElementById('profAvatarInitial').innerText = currentUser.name.charAt(0).toUpperCase();
-  document.getElementById('profName').innerText = currentUser.name;
-  document.getElementById('profEmail').innerText = currentUser.email;
+  const initialEl = document.getElementById('profAvatarInitial');
+  if (initialEl) initialEl.innerText = currentUser.name.charAt(0).toUpperCase();
 
-  document.getElementById('profGoal').innerText = currentUser.fitness_goal || 'General Fitness';
-  document.getElementById('profExperience').innerText = currentUser.experience_level || 'Beginner';
+  const nameEl = document.getElementById('profName');
+  if (nameEl) nameEl.innerText = currentUser.name;
 
-  document.getElementById('profAge').innerText = currentUser.age ? `${currentUser.age} yrs` : 'Not specified';
-  document.getElementById('profHeight').innerText = currentUser.height ? `${currentUser.height} cm` : 'Not specified';
-  document.getElementById('profWeight').innerText = currentUser.weight ? `${currentUser.weight} kg` : 'Not specified';
-  document.getElementById('profGender').innerText = currentUser.gender || 'Not specified';
+  const emailEl = document.getElementById('profEmail');
+  if (emailEl) emailEl.innerText = currentUser.email;
+
+  const goalEl = document.getElementById('profGoal');
+  if (goalEl) goalEl.innerText = currentUser.fitness_goal || 'General Fitness';
+
+  const expEl = document.getElementById('profExperience');
+  if (expEl) expEl.innerText = currentUser.experience_level || 'Beginner';
+
+  const ageEl = document.getElementById('profAge');
+  if (ageEl) ageEl.innerText = currentUser.age ? `${currentUser.age} yrs` : 'Not specified';
+
+  const heightEl = document.getElementById('profHeight');
+  if (heightEl) heightEl.innerText = currentUser.height ? `${currentUser.height} cm` : 'Not specified';
+
+  const weightEl = document.getElementById('profWeight');
+  if (weightEl) weightEl.innerText = currentUser.weight ? `${currentUser.weight} kg` : 'Not specified';
+
+  const genderEl = document.getElementById('profGender');
+  if (genderEl) genderEl.innerText = currentUser.gender || 'Not specified';
+
+  // Body Metrics & Dynamic BMI Calculation
+  const bmWeightEl = document.getElementById('profBmWeight');
+  const bmHeightEl = document.getElementById('profBmHeight');
+  const bmBmiEl = document.getElementById('profBmBmi');
+  const bmCategoryEl = document.getElementById('profBmCategory');
+
+  if (bmWeightEl) bmWeightEl.innerText = currentUser.weight ? `${currentUser.weight} kg` : '-- kg';
+  if (bmHeightEl) bmHeightEl.innerText = currentUser.height ? `${currentUser.height} cm` : '-- cm';
+
+  const calculatedBMI = calculateBMI(currentUser.weight, currentUser.height);
+  const bmiCat = getBMICategory(calculatedBMI);
+
+  if (bmBmiEl) {
+    bmBmiEl.innerText = calculatedBMI !== null ? calculatedBMI.toFixed(1) : '--';
+  }
+  if (bmCategoryEl) {
+    bmCategoryEl.innerText = bmiCat.label;
+    bmCategoryEl.className = `prof-bmi-badge ${bmiCat.class}`;
+  }
+
+  // Leaderboard Privacy Setting
+  const profLbCheckbox = document.getElementById('profLeaderboardCheckbox');
+  if (profLbCheckbox) {
+    profLbCheckbox.checked = currentUser.leaderboard_visible !== false;
+  }
+
+  // Load Progress Reports
+  if (typeof loadProgressReports === 'function') {
+    loadProgressReports();
+  }
 }
 
 /**
@@ -478,6 +622,10 @@ function toggleEditProfileModal(show) {
     document.getElementById('editHeight').value = currentUser.height || '';
     document.getElementById('editWeight').value = currentUser.weight || '';
     document.getElementById('editGender').value = currentUser.gender || '';
+    const editLbVis = document.getElementById('editLeaderboardVisible');
+    if (editLbVis) {
+      editLbVis.checked = currentUser.leaderboard_visible !== false;
+    }
     modal.style.display = 'flex';
   } else {
     modal.style.display = 'none';
@@ -485,10 +633,17 @@ function toggleEditProfileModal(show) {
 }
 
 /**
- * Returns active user ID or fallback
+ * Returns active user ID or null if unauthenticated
  */
 function getAuthenticatedUserId() {
-  return currentUser ? currentUser.id : 1;
+  return currentUser ? currentUser.id : null;
+}
+
+/**
+ * Returns active session token or null
+ */
+function getAuthToken() {
+  return authToken || localStorage.getItem('fitquest_token') || null;
 }
 
 /**
@@ -496,7 +651,7 @@ function getAuthenticatedUserId() {
  */
 function getAuthenticatedUserProfile() {
   if (!currentUser) {
-    return { fitness_goal: 'General Fitness', experience_level: 'Beginner' };
+    return null;
   }
   return {
     user_id: String(currentUser.id),
@@ -555,4 +710,40 @@ function escapeHTML(str) {
   if (!str) return '';
   return String(str).replace(/[&<>'"]/g, tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag));
 }
+
+// Window Exports
+window.calculateBMI = calculateBMI;
+window.getBMICategory = getBMICategory;
+/**
+ * Toggles Leaderboard Privacy setting directly from Athlete Profile view
+ */
+async function toggleLeaderboardPrivacy(checked) {
+  if (!authToken || !currentUser) return;
+  try {
+    const response = await fetch(`${AUTH_API_BASE}/profile`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${authToken}`
+      },
+      body: JSON.stringify({ leaderboard_visible: checked })
+    });
+    const updatedUser = await response.json();
+    if (!response.ok) {
+      throw new Error(updatedUser.detail || 'Failed to update leaderboard privacy.');
+    }
+    currentUser = updatedUser;
+    renderProfilePage();
+    if (typeof loadLeaderboardView === 'function') {
+      loadLeaderboardView();
+    }
+  } catch (err) {
+    alert(`Error updating privacy: ${err.message}`);
+    const profLbCheckbox = document.getElementById('profLeaderboardCheckbox');
+    if (profLbCheckbox) profLbCheckbox.checked = !checked;
+  }
+}
+
+window.renderProfilePage = renderProfilePage;
+window.toggleLeaderboardPrivacy = toggleLeaderboardPrivacy;
 

@@ -29,7 +29,10 @@ class TestSMTPConfiguration(unittest.TestCase):
 
     def test_1_default_smtp_settings(self):
         """TEST 1: Verify default settings fallback for host, port, and frontend URL."""
-        s = Settings()
+        os.environ.pop("FITQUEST_FRONTEND_URL", None)
+        os.environ.pop("SMTP_HOST", None)
+        os.environ.pop("SMTP_PORT", None)
+        s = Settings(_env_file=None)
         self.assertEqual(s.SMTP_HOST, "smtp.gmail.com")
         self.assertEqual(s.SMTP_PORT, 587)
         self.assertEqual(s.FITQUEST_FRONTEND_URL, "http://127.0.0.1:8080")

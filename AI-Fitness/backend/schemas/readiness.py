@@ -1,5 +1,5 @@
 from typing import Optional, Dict, Any
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 
 class ReadinessSupportingMetrics(BaseModel):
     valid_workouts_last_7_days: int = 0
@@ -21,5 +21,4 @@ class ReadinessResponse(BaseModel):
     explanation: str = Field(..., description="Deterministic explanation of readiness and recommendations")
     supporting_metrics: ReadinessSupportingMetrics
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)

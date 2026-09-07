@@ -36,6 +36,7 @@ class UserProfileUpdate(BaseModel):
     height: Optional[float] = None
     weight: Optional[float] = None
     gender: Optional[str] = None
+    leaderboard_visible: Optional[bool] = None
 
 class UserResponse(BaseModel):
     id: int
@@ -47,6 +48,7 @@ class UserResponse(BaseModel):
     height: Optional[float] = None
     weight: Optional[float] = None
     gender: Optional[str] = None
+    leaderboard_visible: bool = True
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)

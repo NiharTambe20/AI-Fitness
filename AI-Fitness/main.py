@@ -58,7 +58,9 @@ def run_app():
                 break
 
             # Process frame: YOLO Pose -> keypoint extraction -> tracker update -> HUD overlay
-            annotated_frame, keypoints, tracker_info = detector.process_frame(frame, tracker=controller.tracker)
+            annotated_frame, keypoints, tracker_info = detector.process_frame(
+                frame, tracker=controller.tracker, draw_debug_hud=True, clean_overlay=False
+            )
 
             # Calculate & overlay FPS
             curr_time = time.time()

@@ -1,17 +1,11 @@
 /**
- * FitQuest — Cinematic 3D Landing Page Controller
- * Manages 3D Extruded Wordmark Mouse Parallax, Typing Reveal Animation, 5-Layer 3D Scroll Reveal & Application Transition.
+ * FitQuest — Premium Public Landing Page Controller
+ * Manages Showcase Tab Switching, Interactive Telemetry HUD Mockups,
+ * Smooth Section Navigation, and Seamless Application Entry Transitions.
  */
 
 (function () {
   let isLandingActive = true;
-  let targetRotateX = 0;
-  let targetRotateY = 0;
-  let currentRotateX = 0;
-  let currentRotateY = 0;
-  let animFrameId = null;
-  let isTouchDevice = false;
-  let hasTypedWordmark = false;
 
   document.addEventListener('DOMContentLoaded', () => {
     initLandingPage();
@@ -19,30 +13,19 @@
 
   function initLandingPage() {
     const landingView = document.getElementById('landingView');
-    const wordmark = document.getElementById('hero3DWordmark');
     const enterBtns = document.querySelectorAll('.btn-landing-enter');
-    const brandLinks = document.querySelectorAll('.nav-brand');
+    const signInBtns = document.querySelectorAll('.btn-landing-signin');
+    const brandLinks = document.querySelectorAll('.nav-brand, .landing-nav-brand');
 
     if (!landingView) return;
 
-    // Detect touch device
-    isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0) || window.matchMedia('(pointer: coarse)').matches;
+    // 1. Initialize Interactive Showcase Tabs
+    initShowcaseTabs();
 
-    // 1. Typing Reveal Animation for FITQUEST
-    initWordmarkTypingAnimation();
+    // 2. Initialize Smooth Scrolling for Landing Navigation Links
+    initLandingNavScroll();
 
-    // 2. Desktop Mouse Movement Listener for 3D Parallax Tilt on Hero Wordmark
-    if (!isTouchDevice && wordmark) {
-      window.addEventListener('mousemove', handleMouseMove, { passive: true });
-      window.addEventListener('mouseleave', handleMouseLeave, { passive: true });
-      startParallaxLoop();
-    }
-
-    // 3. Multi-Layer 3D Scroll Reveal Listener
-    landingView.addEventListener('scroll', handleLandingScroll, { passive: true });
-    handleLandingScroll();
-
-    // 4. CTA Click Handlers — Enter FitQuest Main Application
+    // 3. CTA Click Handlers — Enter FitQuest Main Application
     enterBtns.forEach((btn) => {
       btn.addEventListener('click', (e) => {
         e.preventDefault();
@@ -50,7 +33,15 @@
       });
     });
 
-    // 5. Brand Click Handler (Shift + Click returns to Landing Page)
+    // 4. Sign In Button Handler — Directly opens Auth View (Login form)
+    signInBtns.forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        enterApplication('login');
+      });
+    });
+
+    // 5. Brand Shift+Click Handler to return to Landing Page from authenticated view
     brandLinks.forEach((brand) => {
       brand.addEventListener('click', (e) => {
         if (e.shiftKey) {
@@ -59,158 +50,85 @@
         }
       });
     });
-
-    // Handle initial entrance completion
-    setTimeout(() => {
-      landingView.classList.add('entrance-complete');
-    }, 1200);
   }
 
   /**
-   * Sequential Typing Reveal Animation for "FITQUEST" Wordmark
+   * Initializes Interactive Product Showcase Tabs (Vision, Adaptive, Nutrition, Evolution)
    */
-  function initWordmarkTypingAnimation() {
-    const textEl = document.getElementById('wordmarkText');
-    const cursorEl = document.getElementById('wordmarkCursor');
-    if (!textEl) return;
+  function initShowcaseTabs() {
+    const tabButtons = document.querySelectorAll('.showcase-tab-btn');
+    const panels = {
+      vision: document.getElementById('showcasePanelVision'),
+      adaptive: document.getElementById('showcasePanelAdaptive'),
+      nutrition: document.getElementById('showcasePanelNutrition'),
+      evolution: document.getElementById('showcasePanelEvolution')
+    };
 
-    const fullWord = 'FITQUEST';
-    let charIndex = 0;
+    tabButtons.forEach((tab) => {
+      tab.addEventListener('click', () => {
+        const target = tab.getAttribute('data-showcase');
+        if (!target || !panels[target]) return;
 
-    // Reset initial state
-    textEl.textContent = '';
-    if (cursorEl) {
-      cursorEl.style.opacity = '1';
-      cursorEl.style.display = 'inline-block';
-    }
+        // Update Tab active states & ARIA attributes
+        tabButtons.forEach((t) => {
+          t.classList.remove('active');
+          t.setAttribute('aria-selected', 'false');
+        });
+        tab.classList.add('active');
+        tab.setAttribute('aria-selected', 'true');
 
-    function typeNextChar() {
-      if (charIndex <= fullWord.length) {
-        textEl.textContent = fullWord.substring(0, charIndex);
-        charIndex++;
+        // Switch panels with smooth fade-in
+        Object.keys(panels).forEach((key) => {
+          const panel = panels[key];
+          if (!panel) return;
 
-        if (charIndex <= fullWord.length) {
-          setTimeout(typeNextChar, 90);
-        } else {
-          // Finished typing FITQUEST — fade out blinking cursor
-          setTimeout(() => {
-            if (cursorEl) {
-              cursorEl.style.opacity = '0';
-              setTimeout(() => {
-                cursorEl.style.display = 'none';
-              }, 400);
-            }
-            hasTypedWordmark = true;
-          }, 350);
-        }
-      }
-    }
-
-    // Start typing after brief initial delay (150ms)
-    setTimeout(typeNextChar, 150);
-  }
-
-  /**
-   * Manages 3D Layered Scroll Transformations across all 5 Cinematic Layers
-   */
-  function handleLandingScroll() {
-    if (!isLandingActive) return;
-
-    const landingView = document.getElementById('landingView');
-    if (!landingView) return;
-
-    const layers = landingView.querySelectorAll('.landing-layer');
-    if (!layers || layers.length === 0) return;
-
-    const viewHeight = landingView.clientHeight || window.innerHeight;
-    const scrollTop = landingView.scrollTop;
-
-    layers.forEach((layer, idx) => {
-      const layerTop = idx * viewHeight;
-      const progress = (scrollTop - layerTop) / viewHeight;
-
-      if (progress > 1.2 || progress < -1.2) {
-        layer.style.opacity = '0';
-        layer.style.pointerEvents = 'none';
-        return;
-      }
-
-      layer.style.pointerEvents = 'auto';
-
-      if (progress >= 0 && progress <= 1) {
-        // Layer scrolling OUT into background depth
-        const scale = (1 - progress * 0.15).toFixed(3);
-        const opacity = Math.max(0, 1 - progress * 1.1).toFixed(3);
-        const translateY = (-progress * 50).toFixed(1);
-        const translateZ = (-progress * 120).toFixed(1);
-
-        layer.style.opacity = opacity;
-        layer.style.transform = `translate3d(0, ${translateY}px, ${translateZ}px) scale(${scale})`;
-      } else if (progress < 0 && progress >= -1) {
-        // Layer scrolling IN from deeper space below
-        const normIn = 1 + progress;
-        const scale = (0.88 + normIn * 0.12).toFixed(3);
-        const opacity = Math.min(1, Math.max(0, normIn * 1.25)).toFixed(3);
-        const translateY = ((1 - normIn) * 70).toFixed(1);
-        const translateZ = (-(1 - normIn) * 80).toFixed(1);
-
-        layer.style.opacity = opacity;
-        layer.style.transform = `translate3d(0, ${translateY}px, ${translateZ}px) scale(${scale})`;
-      } else {
-        // Layer centered
-        layer.style.opacity = '1';
-        layer.style.transform = 'translate3d(0, 0px, 0px) scale(1)';
-      }
+          if (key === target) {
+            panel.style.display = 'block';
+            panel.style.opacity = '0';
+            panel.classList.add('active');
+            requestAnimationFrame(() => {
+              panel.style.transition = 'opacity 0.3s ease';
+              panel.style.opacity = '1';
+            });
+          } else {
+            panel.style.display = 'none';
+            panel.classList.remove('active');
+          }
+        });
+      });
     });
   }
 
   /**
-   * Calculates mouse distance relative to viewport center for 3D tilt
+   * Smooth scroll navigation within the landing page container
    */
-  function handleMouseMove(e) {
-    if (!isLandingActive) return;
+  function initLandingNavScroll() {
+    const landingView = document.getElementById('landingView');
+    const navLinks = document.querySelectorAll('.landing-nav-link, .btn-hero-secondary, .footer-link[href^="#"]');
 
-    const centerX = window.innerWidth / 2;
-    const centerY = window.innerHeight / 2;
+    navLinks.forEach((link) => {
+      link.addEventListener('click', (e) => {
+        const href = link.getAttribute('href');
+        if (!href || !href.startsWith('#')) return;
 
-    const normX = (e.clientX - centerX) / centerX;
-    const normY = (e.clientY - centerY) / centerY;
-
-    targetRotateY = normX * 8;
-    targetRotateX = -normY * 8;
-  }
-
-  /**
-   * Smoothly resets 3D tilt when mouse leaves browser window
-   */
-  function handleMouseLeave() {
-    targetRotateX = 0;
-    targetRotateY = 0;
-  }
-
-  /**
-   * Animation Loop using RequestAnimationFrame for 60fps smooth 3D tilt
-   */
-  function startParallaxLoop() {
-    function updateTilt() {
-      if (isLandingActive && !isTouchDevice) {
-        const wordmark = document.getElementById('hero3DWordmark');
-        if (wordmark) {
-          currentRotateX += (targetRotateX - currentRotateX) * 0.08;
-          currentRotateY += (targetRotateY - currentRotateY) * 0.08;
-
-          wordmark.style.transform = `perspective(1000px) rotateX(${currentRotateX.toFixed(2)}deg) rotateY(${currentRotateY.toFixed(2)}deg)`;
+        const targetEl = document.querySelector(href);
+        if (targetEl && landingView) {
+          e.preventDefault();
+          const targetOffset = targetEl.offsetTop - (document.getElementById('landingNavHeader')?.offsetHeight || 60);
+          landingView.scrollTo({
+            top: targetOffset,
+            behavior: 'smooth'
+          });
         }
-      }
-      animFrameId = requestAnimationFrame(updateTilt);
-    }
-    updateTilt();
+      });
+    });
   }
 
   /**
-   * Transitions from Cinematic Landing Page into the main FitQuest application
+   * Transitions from Cinematic Landing Page into the main FitQuest application or auth screen
+   * @param {string} [preferredForm='login']
    */
-  function enterApplication() {
+  function enterApplication(preferredForm) {
     const landingView = document.getElementById('landingView');
     if (!landingView) return;
 
@@ -241,9 +159,18 @@
         if (authView) {
           authView.style.display = 'flex';
           authView.classList.add('active');
+
+          if (preferredForm === 'login' && typeof showAuthFormContainer === 'function') {
+            showAuthFormContainer('loginFormContainer');
+            const loginTab = document.querySelector('.auth-tab-btn[data-auth-form="login"]');
+            if (loginTab) {
+              document.querySelectorAll('.auth-tab-btn').forEach(t => t.classList.remove('active'));
+              loginTab.classList.add('active');
+            }
+          }
         }
       }
-    }, 400);
+    }, 350);
   }
 
   /**
@@ -263,11 +190,6 @@
 
       landingView.style.display = 'block';
       landingView.classList.remove('fade-out');
-      landingView.classList.add('entrance-complete');
-
-      // Re-trigger typing animation if returning
-      initWordmarkTypingAnimation();
-      handleLandingScroll();
     }
   }
 

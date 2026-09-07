@@ -1,7 +1,7 @@
 import os
 from typing import List, Optional
 from datetime import datetime, timezone
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session, joinedload, selectinload
 
 
 from backend.models import (
@@ -99,6 +99,8 @@ class WorkoutService:
             user.weight = profile_in.weight
         if profile_in.gender is not None:
             user.gender = profile_in.gender
+        if getattr(profile_in, "leaderboard_visible", None) is not None:
+            user.leaderboard_visible = profile_in.leaderboard_visible
 
         db.commit()
         db.refresh(user)
@@ -165,7 +167,7 @@ class WorkoutService:
                 form_score=actual_form_score,
                 feedback=event
             )
-            db.add(form_log)
+            workout_session.form_logs.append(form_log)
 
         # 3. Build Telemetry Payload for Member 4 AI Assistant
         telemetry = WorkoutSessionData(
@@ -176,7 +178,6 @@ class WorkoutService:
             form_scores_history=form_scores_history or [],
             feedback_events=events
         )
-
 
         user_profile = UserProfile(
             user_id=str(user.id),
@@ -191,7 +192,7 @@ class WorkoutService:
             response=ai_response_text,
             provider=provider
         )
-        db.add(coaching_log)
+        workout_session.ai_coaching_logs.append(coaching_log)
 
         # 5. Automatically evaluate & award gamification achievements for valid workouts (reps >= 1)
         if session_in.repetitions >= 1:
@@ -200,7 +201,6 @@ class WorkoutService:
 
         # Commit transaction
         db.commit()
-        db.expire_all()
         return WorkoutService.get_workout_session(db, workout_session.id) or workout_session
 
 
@@ -211,8 +211,8 @@ class WorkoutService:
             .options(
                 joinedload(WorkoutSessionModel.user),
                 joinedload(WorkoutSessionModel.exercise),
-                joinedload(WorkoutSessionModel.form_logs),
-                joinedload(WorkoutSessionModel.ai_coaching_logs)
+                selectinload(WorkoutSessionModel.form_logs),
+                selectinload(WorkoutSessionModel.ai_coaching_logs)
             )
             .filter(WorkoutSessionModel.id == session_id)
             .first()

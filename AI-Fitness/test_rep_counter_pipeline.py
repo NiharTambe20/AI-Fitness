@@ -18,29 +18,60 @@ Verifies:
 import json
 import time
 from fastapi.testclient import TestClient
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
+
 from backend.main import app
-from backend.database import init_db, SessionLocal
+from backend.database import Base, get_db, seed_exercises
 from backend.models import WorkoutSessionModel, FormLogModel, AICoachingLogModel
 from backend.services.cv_service import cv_live_service
 
-def run_rep_counter_pipeline_tests():
+# Setup isolated in-memory SQLite database
+TEST_DB_URL = "sqlite:///:memory:"
+test_engine = create_engine(
+    TEST_DB_URL,
+    connect_args={"check_same_thread": False},
+    poolclass=StaticPool
+)
+TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=test_engine)
+
+def override_get_db():
+    db = TestingSessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+def test_rep_counter_pipeline():
     print("==================================================")
     print(" Running FitQuest 10-Test Rep Counter Pipeline    ")
     print("==================================================")
 
-    init_db()
-    db = SessionLocal()
-    db.query(AICoachingLogModel).delete()
-    db.query(FormLogModel).delete()
-    db.query(WorkoutSessionModel).delete()
-    db.commit()
+    # Safety Guard: Ensure test only runs against SQLite
+    assert str(test_engine.url).startswith("sqlite"), "Safety guard: Tests must only run against SQLite!"
+
+    app.dependency_overrides[get_db] = override_get_db
+    Base.metadata.create_all(bind=test_engine)
+    db = TestingSessionLocal()
+    seed_exercises(db)
     db.close()
 
     client = TestClient(app)
 
-    # 1. Register test user
-    u = client.post("/api/v1/users", json={"name": "Rep Counter Tester", "email": "repcount@example.com"}).json()
-    user_id = u["id"]
+    # 1. Register test user via authenticated registration
+    reg_res = client.post("/api/v1/auth/register", json={
+        "name": "Rep Counter Tester",
+        "email": "repcount@example.com",
+        "password": "StrongPassword123!",
+        "fitness_goal": "Strength",
+        "experience_level": "Intermediate"
+    })
+    assert reg_res.status_code == 201, f"User registration failed: {reg_res.text}"
+    u_data = reg_res.json()
+    user_id = u_data["user"]["id"]
+    auth_token = u_data["access_token"]
+    auth_headers = {"Authorization": f"Bearer {auth_token}"}
 
     # --------------------------------------------------
     # TEST 1: Start fresh session -> rep_count = 0
@@ -104,7 +135,7 @@ def run_rep_counter_pipeline_tests():
         "form_scores_history": [1]*10,
         "feedback_events": ["Good squat"]
     }
-    rec_a = client.post("/api/v1/workouts", json=payload_a).json()
+    rec_a = client.post("/api/v1/workouts", json=payload_a, headers=auth_headers).json()
     assert rec_a["repetitions"] == 10, "TEST 4 FAIL: Workout A should have 10 reps!"
     print("[PASS] TEST 4: Workout A completed with 10 verified reps.")
 
@@ -127,7 +158,7 @@ def run_rep_counter_pipeline_tests():
         "form_scores_history": [],
         "feedback_events": ["No reps"]
     }
-    rec_b = client.post("/api/v1/workouts", json=payload_b).json()
+    rec_b = client.post("/api/v1/workouts", json=payload_b, headers=auth_headers).json()
     assert rec_b["repetitions"] == 0, "TEST 5 FAIL: Workout B should have 0 reps!"
     text_b = rec_b["ai_coaching_logs"][0]["response"]
     assert "No valid repetitions were detected" in text_b
@@ -156,13 +187,15 @@ def run_rep_counter_pipeline_tests():
         "form_scores_history": [1]*5,
         "feedback_events": ["5 good squats"]
     }
-    rec_c = client.post("/api/v1/workouts", json=payload_c).json()
+    rec_c = client.post("/api/v1/workouts", json=payload_c, headers=auth_headers).json()
     assert rec_c["repetitions"] == 5, "TEST 6 & 10 FAIL: Final record should be 5 reps!"
     print("[PASS] TEST 6 & 10: Workout C (5 reps) recorded exactly 5 reps and received coaching analysis.")
 
     print("\n==================================================")
     print(" ALL 10 REP COUNTER PIPELINE TESTS PASSED 100%!   ")
     print("==================================================")
+
+run_rep_counter_pipeline_tests = test_rep_counter_pipeline
 
 if __name__ == "__main__":
     run_rep_counter_pipeline_tests()

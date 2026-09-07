@@ -3,8 +3,10 @@
 Test suite for Phase 4 Step 3: Database Schema, ORM Models, Relationships & Seeding.
 """
 
-from sqlalchemy import inspect
-from backend.database import SessionLocal, init_db, seed_exercises, engine
+from sqlalchemy import inspect, create_engine
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
+from backend.database import Base, seed_exercises
 from backend.models import (
     UserModel,
     ExerciseModel,
@@ -16,19 +18,34 @@ from backend.models import (
 def test_database_schema_and_models():
     print("[TEST] Initializing Database Schema & ORM Models test...")
 
-    # 1. Initialize Database Tables & Seed Exercises
-    init_db()
+    # Setup isolated in-memory SQLite database
+    TEST_DB_URL = "sqlite:///:memory:"
+    test_engine = create_engine(
+        TEST_DB_URL,
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool
+    )
+    TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=test_engine)
+
+    # Safety Guard: Ensure test only runs against SQLite
+    assert str(test_engine.url).startswith("sqlite"), "Safety guard: Tests must only run against SQLite!"
+
+    # 1. Initialize Database Tables & Seed Exercises on isolated engine
+    Base.metadata.create_all(bind=test_engine)
+    init_db_sess = TestingSessionLocal()
+    seed_exercises(init_db_sess)
+    init_db_sess.close()
     print("[PASS] Database initialized successfully.")
 
     # 2. Verify all 5 tables exist in the database
-    inspector = inspect(engine)
+    inspector = inspect(test_engine)
     table_names = inspector.get_table_names()
     expected_tables = ["users", "exercises", "workout_sessions", "form_logs", "ai_coaching_logs"]
     for table in expected_tables:
         assert table in table_names, f"Expected table '{table}' missing from database schema!"
     print(f"[PASS] All 5 database tables verified: {table_names}")
 
-    db = SessionLocal()
+    db = TestingSessionLocal()
     try:
         # 3. Test User Creation
         user = UserModel(
