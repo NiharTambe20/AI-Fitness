@@ -69,6 +69,7 @@ const EXERCISE_DEFAULT_PRESCRIPTIONS = {
 
 // API Endpoints
 var API_BASE = window.API_BASE || 'http://127.0.0.1:8000/api/v1';
+const ML_API_BASE = window.ML_API_BASE || API_BASE;
 
 document.addEventListener('DOMContentLoaded', () => {
   initTabNavigation();
@@ -1097,7 +1098,7 @@ async function startWorkoutSession() {
 
   // Call start-session backend API
   try {
-    await fetch(`${API_BASE}/workouts/live/start-session`, {
+    await fetch(`${ML_API_BASE}/workouts/live/start-session`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -1232,7 +1233,7 @@ function startFrameTransmission() {
         include_annotated_image: true
       };
 
-      const res = await fetch(`${API_BASE}/workouts/live/process-frame`, {
+      const res = await fetch(`${ML_API_BASE}/workouts/live/process-frame`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -1484,7 +1485,7 @@ async function endWorkoutSession() {
 
   // Call stop-session backend API to retrieve final CV summary & movement intelligence
   try {
-    const stopRes = await fetch(`${API_BASE}/workouts/live/stop-session`, {
+    const stopRes = await fetch(`${ML_API_BASE}/workouts/live/stop-session`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ session_id: activeSessionId })
@@ -2393,7 +2394,7 @@ async function launchStructuredExercise() {
 
   // Call start-session backend API to guarantee clean controller initialization
   try {
-    await fetch(`${API_BASE}/workouts/live/start-session`, {
+    await fetch(`${ML_API_BASE}/workouts/live/start-session`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -2531,7 +2532,7 @@ async function handleSingleExerciseSetComplete() {
 
   // 3. Stop active backend CV session cleanly for this set
   try {
-    await fetch(`${API_BASE}/workouts/live/stop-session`, {
+    await fetch(`${ML_API_BASE}/workouts/live/stop-session`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ session_id: activeSessionId })
@@ -2655,7 +2656,7 @@ async function launchNextSingleExerciseSet() {
 
   // Start new backend CV session for this set
   try {
-    await fetch(`${API_BASE}/workouts/live/start-session`, {
+    await fetch(`${ML_API_BASE}/workouts/live/start-session`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
