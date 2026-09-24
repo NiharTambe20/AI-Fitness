@@ -3647,13 +3647,9 @@
   <!-- Chart.js Library for Progress Analytics Charts -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-  <!-- Global API Config -->
+ <!-- Global API Config -->
   <script>
-    window.API_BASE = window.API_BASE || (
-      (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || !window.location.hostname)
-        ? 'http://127.0.0.1:8000/api/v1'
-        : '/api/v1'
-    );
+    window.API_BASE = 'https://saish-patil03--fitquest-backend-serve.modal.run/api/v1';
   </script>
 
   <script src="landing.js"></script>
