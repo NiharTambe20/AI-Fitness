@@ -1175,18 +1175,41 @@ async function startCameraStream() {
     if (video) {
       video.srcObject = webcamStream;
       video.style.display = 'block';
-      video.onloadedmetadata = () => applyAspect(video);
+      video.onloadedmetadata = () => {
+        applyAspect(video);
+        if (typeof video.play === 'function') {
+          video.play().catch(e => console.warn('[FitQuest Camera]: video play deferred:', e));
+        }
+      };
+      if (typeof video.play === 'function') {
+        video.play().catch(() => {});
+      }
     }
     if (prepareVideo) {
       prepareVideo.srcObject = webcamStream;
       prepareVideo.style.display = 'block';
-      prepareVideo.onloadedmetadata = () => applyAspect(prepareVideo);
+      prepareVideo.onloadedmetadata = () => {
+        applyAspect(prepareVideo);
+        if (typeof prepareVideo.play === 'function') {
+          prepareVideo.play().catch(e => console.warn('[FitQuest Camera]: prepareVideo play deferred:', e));
+        }
+      };
+      if (typeof prepareVideo.play === 'function') {
+        prepareVideo.play().catch(() => {});
+      }
     }
 
-    if (overlay) overlay.style.display = 'block';
+    // Keep camera overlay hidden so continuous live video is directly visible (zero lag)
+    // Only show if developer/user explicitly toggles overlay mode
+    if (overlay) {
+      overlay.style.display = window.FITQUEST_SHOW_OVERLAY ? 'block' : 'none';
+      if (!window.FITQUEST_SHOW_OVERLAY) {
+        overlay.removeAttribute('src');
+      }
+    }
     if (placeholder) placeholder.style.display = 'none';
 
-    // Start frame streaming to backend
+    // Start frame streaming to backend via producer/consumer pipeline
     startFrameTransmission();
 
   } catch (err) {
@@ -1207,43 +1230,110 @@ async function startCameraStream() {
 }
 
 /**
- * Transmits video frames to backend CV Engine via HTTP / WebSocket
+ * Transmits video frames to backend CV Engine via asynchronous Producer/Consumer pipeline
  */
 let isProcessingFrame = false;
+let mlRequestInFlight = false;
+let videoFrameCallbackId = null;
+let frameCaptureRafId = null;
+let lastFrameSentTime = 0;
+let mlAbortController = null;
 
-function startFrameTransmission() {
-  const video = document.getElementById('webcamFeed');
-  const canvas = document.getElementById('frameCanvas');
-  const overlay = document.getElementById('overlayImage');
-  const ctx = canvas ? canvas.getContext('2d') : null;
+const ML_TARGET_FPS = 8; // Controlled rate: 8 FPS (125ms interval, optimal 5-10 FPS window)
+const ML_FRAME_INTERVAL_MS = Math.round(1000 / ML_TARGET_FPS);
+const ML_MAX_CANVAS_DIM = 480; // Reasonable resolution for YOLO Pose input
+const ML_JPEG_QUALITY = 0.6; // Efficient JPEG encoding
+const ML_REQUEST_TIMEOUT_MS = 3500; // Timeout to prevent stuck in-flight guard
 
-  if (frameCaptureInterval) clearInterval(frameCaptureInterval);
+function stopFrameTransmission() {
+  mlRequestInFlight = false;
   isProcessingFrame = false;
 
-  // Send frame every 120ms (~8-10 FPS)
-  frameCaptureInterval = setInterval(async () => {
-    if (!video || video.paused || video.ended || !video.videoWidth) return;
-    if (isProcessingFrame) return;
+  if (mlAbortController) {
+    try { mlAbortController.abort(); } catch (e) {}
+    mlAbortController = null;
+  }
 
-    canvas.width = video.videoWidth || 640;
-    canvas.height = video.videoHeight || 480;
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+  const video = document.getElementById('webcamFeed');
+  const prepareVideo = document.getElementById('prepareWebcamFeed');
 
-    const base64Frame = canvas.toDataURL('image/jpeg', 0.6);
+  if (videoFrameCallbackId !== null) {
+    if (video && typeof video.cancelVideoFrameCallback === 'function') {
+      try { video.cancelVideoFrameCallback(videoFrameCallbackId); } catch (e) {}
+    }
+    if (prepareVideo && typeof prepareVideo.cancelVideoFrameCallback === 'function') {
+      try { prepareVideo.cancelVideoFrameCallback(videoFrameCallbackId); } catch (e) {}
+    }
+    videoFrameCallbackId = null;
+  }
+
+  if (frameCaptureRafId !== null) {
+    cancelAnimationFrame(frameCaptureRafId);
+    frameCaptureRafId = null;
+  }
+
+  if (frameCaptureInterval) {
+    clearInterval(frameCaptureInterval);
+    frameCaptureInterval = null;
+  }
+}
+
+function startFrameTransmission() {
+  stopFrameTransmission();
+
+  const canvas = document.getElementById('frameCanvas');
+  const ctx = canvas ? canvas.getContext('2d') : null;
+  const overlay = document.getElementById('overlayImage');
+
+  lastFrameSentTime = 0;
+
+  // Extracts single scaled frame onto hidden canvas and converts to base64 JPEG
+  function extractFrameBase64(vEl) {
+    if (!vEl || !canvas || !ctx || !vEl.videoWidth || !vEl.videoHeight) return null;
+
+    const vw = vEl.videoWidth;
+    const vh = vEl.videoHeight;
+    const maxDim = Math.max(vw, vh);
+    const scale = maxDim > ML_MAX_CANVAS_DIM ? (ML_MAX_CANVAS_DIM / maxDim) : 1;
+    const targetW = Math.max(1, Math.round(vw * scale));
+    const targetH = Math.max(1, Math.round(vh * scale));
+
+    // Only update dimensions if they changed, avoiding canvas buffer reallocation
+    if (canvas.width !== targetW || canvas.height !== targetH) {
+      canvas.width = targetW;
+      canvas.height = targetH;
+    }
+
+    ctx.drawImage(vEl, 0, 0, targetW, targetH);
+    return canvas.toDataURL('image/jpeg', ML_JPEG_QUALITY);
+  }
+
+  // Consumer: Asynchronously dispatch frame to Modal ML service
+  async function dispatchFrameToML(base64Frame) {
+    mlRequestInFlight = true;
+    isProcessingFrame = true;
+
+    mlAbortController = new AbortController();
+    const timeoutId = setTimeout(() => {
+      if (mlAbortController) {
+        mlAbortController.abort();
+      }
+    }, ML_REQUEST_TIMEOUT_MS);
 
     try {
-      isProcessingFrame = true;
+      const shouldIncludeOverlay = Boolean(window.FITQUEST_SHOW_OVERLAY);
       const payload = {
         session_id: activeSessionId,
-        exercise_choice: String(selectedExercise.id),
+        exercise_choice: String(selectedExercise?.id || '1'),
         frame_data: base64Frame,
-        include_annotated_image: true
+        include_annotated_image: shouldIncludeOverlay
       };
 
       const res = await fetch(`${ML_API_BASE}/workouts/live/process-frame`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
+        body: JSON.stringify(payload),
+        signal: mlAbortController.signal
       });
 
       if (!res.ok) return;
@@ -1252,11 +1342,75 @@ function startFrameTransmission() {
       updateHUDTelemetry(telemetry, overlay);
 
     } catch (err) {
-      console.error('[FitQuest Frame Processing Error]:', err);
+      if (err.name !== 'AbortError') {
+        console.warn('[FitQuest Frame Processing]:', err);
+      }
     } finally {
+      clearTimeout(timeoutId);
+      mlAbortController = null;
+      mlRequestInFlight = false;
       isProcessingFrame = false;
     }
-  }, 120);
+  }
+
+  // Frame tick callback: captures frame at controlled rate without blocking video rendering
+  function onFrameTick() {
+    if (!webcamStream || !webcamStream.active || !frameCaptureInterval) {
+      return;
+    }
+
+    const video = document.getElementById('webcamFeed');
+    const prepareVideo = document.getElementById('prepareWebcamFeed');
+    const activeVideo = (prepareCalibrationActive && prepareVideo && prepareVideo.videoWidth) ? prepareVideo : video;
+
+    if (!activeVideo || activeVideo.paused || activeVideo.ended || !activeVideo.videoWidth) {
+      scheduleNextTick(activeVideo);
+      return;
+    }
+
+    const now = performance.now();
+    const elapsed = now - lastFrameSentTime;
+
+    // Controlled 5-10 FPS rate limiter (~125ms interval)
+    if (elapsed >= ML_FRAME_INTERVAL_MS) {
+      // In-flight guard: if previous ML request is still computing, drop this frame!
+      if (!mlRequestInFlight) {
+        lastFrameSentTime = now;
+        const frameData = extractFrameBase64(activeVideo);
+        if (frameData) {
+          // Send asynchronously without awaiting so video playback NEVER stalls
+          dispatchFrameToML(frameData);
+        }
+      }
+    }
+
+    scheduleNextTick(activeVideo);
+  }
+
+  function scheduleNextTick(vEl) {
+    if (!webcamStream || !webcamStream.active || !frameCaptureInterval) {
+      return;
+    }
+
+    if (vEl && typeof vEl.requestVideoFrameCallback === 'function') {
+      videoFrameCallbackId = vEl.requestVideoFrameCallback(() => onFrameTick());
+    } else {
+      frameCaptureRafId = requestAnimationFrame(() => onFrameTick());
+    }
+  }
+
+  // Active sentinel interval for backwards compatibility with tests that verify frameCaptureInterval lifecycle
+  frameCaptureInterval = setInterval(() => {
+    // Liveness watchdog: re-trigger tick if request callback became idle while stream is active
+    if (videoFrameCallbackId === null && frameCaptureRafId === null && webcamStream && webcamStream.active) {
+      const v = document.getElementById('webcamFeed');
+      scheduleNextTick(v);
+    }
+  }, 1000);
+
+  // Kick off frame loop
+  const initialVideo = document.getElementById('webcamFeed');
+  scheduleNextTick(initialVideo);
 }
 
 /**
@@ -1305,17 +1459,25 @@ function updateHUDTelemetry(telemetry, overlayElement) {
     const startBtn = document.getElementById('prepareStartBtn');
 
     if (telemetry.feedback_code === 'LANDMARKS_MISSING') {
-      if (icon) icon.className = 'status-indicator-icon icon-calibrating';
-      if (title) title.innerText = 'Move into Camera View';
-      if (desc) desc.innerText = 'Step back so your upper body and active joints are clearly visible inside the frame.';
-      if (frameInst) frameInst.innerText = 'Step back so your body fits inside the frame';
+      if (icon && icon.className !== 'status-indicator-icon icon-calibrating') icon.className = 'status-indicator-icon icon-calibrating';
+      if (title && title.innerText !== 'Move into Camera View') title.innerText = 'Move into Camera View';
+      if (desc && desc.innerText !== 'Step back so your upper body and active joints are clearly visible inside the frame.') {
+        desc.innerText = 'Step back so your upper body and active joints are clearly visible inside the frame.';
+      }
+      if (frameInst && frameInst.innerText !== 'Step back so your body fits inside the frame') {
+        frameInst.innerText = 'Step back so your body fits inside the frame';
+      }
       if (startBtn) startBtn.classList.remove('btn-pulse-ready');
     } else {
       isCalibrationReady = true;
-      if (icon) icon.className = 'status-indicator-icon icon-ready';
-      if (title) title.innerText = '✓ Body Detected · In Position!';
-      if (desc) desc.innerText = 'You are in optimal position. Click Start Workout when you are ready to begin.';
-      if (frameInst) frameInst.innerText = '✓ Perfect position! Ready to start.';
+      if (icon && icon.className !== 'status-indicator-icon icon-ready') icon.className = 'status-indicator-icon icon-ready';
+      if (title && title.innerText !== '✓ Body Detected · In Position!') title.innerText = '✓ Body Detected · In Position!';
+      if (desc && desc.innerText !== 'You are in optimal position. Click Start Workout when you are ready to begin.') {
+        desc.innerText = 'You are in optimal position. Click Start Workout when you are ready to begin.';
+      }
+      if (frameInst && frameInst.innerText !== '✓ Perfect position! Ready to start.') {
+        frameInst.innerText = '✓ Perfect position! Ready to start.';
+      }
       if (startBtn) startBtn.classList.add('btn-pulse-ready');
     }
   }
@@ -1330,7 +1492,7 @@ function updateHUDTelemetry(telemetry, overlayElement) {
     currentRepCount = telemetry.rep_count;
 
     const repCountEl = document.getElementById('hudRepCount');
-    if (repCountEl) {
+    if (repCountEl && repCountEl.innerText !== String(currentRepCount)) {
       repCountEl.innerText = currentRepCount;
       if (currentRepCount > prevRep) {
         // Trigger celebratory rep pulse animation
@@ -1345,7 +1507,10 @@ function updateHUDTelemetry(telemetry, overlayElement) {
     const progressFill = document.getElementById('hudRepProgressFill');
     if (progressFill) {
       const pct = Math.min(100, Math.round((currentRepCount / Math.max(1, targetReps)) * 100));
-      progressFill.style.width = `${pct}%`;
+      const pctStr = `${pct}%`;
+      if (progressFill.style.width !== pctStr) {
+        progressFill.style.width = pctStr;
+      }
     }
 
     // Auto trigger set completion when target reps reached in single-exercise workout
@@ -1361,24 +1526,22 @@ function updateHUDTelemetry(telemetry, overlayElement) {
 
   // 2. FORM QUALITY PILL (Concise & Unobtrusive)
   if (telemetry.form_score !== undefined) {
-    currentFormScore = telemetry.form_score;
+    const rawScore = telemetry.form_score;
+    currentFormScore = rawScore;
     const formScoreEl = document.getElementById('hudFormScore');
     const formPillEl = document.getElementById('hudFormScorePill');
 
     if (formScoreEl && formPillEl) {
-      if (currentRepCount === 0 || currentFormScore === 0.0) {
-        formScoreEl.innerText = 'Calibrating';
-        formPillEl.className = 'trainer-form-pill pill-neutral';
+      if (currentRepCount === 0 || rawScore === 0.0) {
+        if (formScoreEl.innerText !== 'Calibrating') formScoreEl.innerText = 'Calibrating';
+        if (formPillEl.className !== 'trainer-form-pill pill-neutral') formPillEl.className = 'trainer-form-pill pill-neutral';
       } else {
-        const score = Math.round(currentFormScore);
-        formScoreEl.innerText = `${score}% Form`;
-        if (score >= 85) {
-          formPillEl.className = 'trainer-form-pill pill-good';
-        } else if (score >= 70) {
-          formPillEl.className = 'trainer-form-pill pill-warn';
-        } else {
-          formPillEl.className = 'trainer-form-pill pill-alert';
-        }
+        const score = Math.round(rawScore);
+        const scoreText = `${score}% Form`;
+        if (formScoreEl.innerText !== scoreText) formScoreEl.innerText = scoreText;
+
+        const targetClass = score >= 85 ? 'trainer-form-pill pill-good' : (score >= 70 ? 'trainer-form-pill pill-warn' : 'trainer-form-pill pill-alert');
+        if (formPillEl.className !== targetClass) formPillEl.className = targetClass;
       }
     }
   }
@@ -1402,31 +1565,42 @@ function updateHUDTelemetry(telemetry, overlayElement) {
 
   if (feedbackContainer) {
     const trainerMessage = formatTrainerCue(activeFeedbackCode, activeFeedbackDetail);
-    feedbackContainer.innerText = trainerMessage;
+    if (feedbackContainer.innerText !== trainerMessage) {
+      feedbackContainer.innerText = trainerMessage;
+    }
 
     if (coachBanner && coachIcon) {
+      let targetBannerClass = 'trainer-coaching-banner banner-guidance';
+      let targetIconHtml = '<i class="fa-solid fa-person-circle-question"></i>';
+
       if (!telemetry.valid || activeFeedbackCode === 'LANDMARKS_MISSING') {
-        coachBanner.className = 'trainer-coaching-banner banner-guidance';
-        coachIcon.innerHTML = '<i class="fa-solid fa-person-circle-question"></i>';
+        targetBannerClass = 'trainer-coaching-banner banner-guidance';
+        targetIconHtml = '<i class="fa-solid fa-person-circle-question"></i>';
       } else if (activeFeedbackCode === 'GOOD_FORM') {
-        coachBanner.className = 'trainer-coaching-banner banner-good';
-        coachIcon.innerHTML = '<i class="fa-solid fa-circle-check"></i>';
+        targetBannerClass = 'trainer-coaching-banner banner-good';
+        targetIconHtml = '<i class="fa-solid fa-circle-check"></i>';
       } else {
-        coachBanner.className = 'trainer-coaching-banner banner-warn';
-        coachIcon.innerHTML = '<i class="fa-solid fa-circle-exclamation"></i>';
+        targetBannerClass = 'trainer-coaching-banner banner-warn';
+        targetIconHtml = '<i class="fa-solid fa-circle-exclamation"></i>';
       }
+
+      if (coachBanner.className !== targetBannerClass) coachBanner.className = targetBannerClass;
+      if (coachIcon.innerHTML !== targetIconHtml) coachIcon.innerHTML = targetIconHtml;
     }
   }
 
   if (telemetry.feedback && telemetry.feedback.length > 0) {
-    const feedbackStr = telemetry.feedback.join(' | ');
+    const feedbackStr = Array.isArray(telemetry.feedback) ? telemetry.feedback.join(' | ') : String(telemetry.feedback);
     if (!accumulatedFeedback.includes(feedbackStr)) {
       accumulatedFeedback.push(feedbackStr);
     }
   }
 
-  if (telemetry.annotated_frame && overlayElement) {
-    overlayElement.src = telemetry.annotated_frame;
+  // Only update overlay image if explicitly visible/enabled (avoids replacing DOM elements when hidden)
+  if (telemetry.annotated_frame && overlayElement && overlayElement.style.display !== 'none') {
+    if (overlayElement.src !== telemetry.annotated_frame) {
+      overlayElement.src = telemetry.annotated_frame;
+    }
   }
 
   // Feed real-time telemetry into Movement Copilot (Phase 5)
@@ -1435,16 +1609,11 @@ function updateHUDTelemetry(telemetry, overlayElement) {
   }
 }
 
-
 /**
  * Stops camera stream cleanly and releases webcam hardware
  */
 function stopCameraStream() {
-  isProcessingFrame = false;
-  if (frameCaptureInterval) {
-    clearInterval(frameCaptureInterval);
-    frameCaptureInterval = null;
-  }
+  stopFrameTransmission();
 
   if (webcamStream) {
     webcamStream.getTracks().forEach((track) => {
@@ -1468,7 +1637,10 @@ function stopCameraStream() {
     prepareVideo.srcObject = null;
     prepareVideo.style.display = 'none';
   }
-  if (overlay) overlay.style.display = 'none';
+  if (overlay) {
+    overlay.style.display = 'none';
+    overlay.removeAttribute('src');
+  }
   if (placeholder) placeholder.style.display = 'block';
 }
 
