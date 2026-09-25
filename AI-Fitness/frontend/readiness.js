@@ -30,10 +30,8 @@ function initReadinessObserver() {
  */
 async function loadTrainingReadiness() {
   const token = localStorage.getItem('fitquest_token');
-  const headers = { 'Accept': 'application/json' };
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
-  }
+  if (!token) return;
+  const headers = { 'Accept': 'application/json', 'Authorization': `Bearer ${token}` };
 
   try {
     const response = await fetch(`${API_BASE}/readiness/me`, {

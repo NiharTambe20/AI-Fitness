@@ -3,8 +3,8 @@
  * Fetches and renders streak metrics, weekly/monthly activity calendars, achievement badges, and toast notifications.
  */
 
-const STREAK_API_BASE = (window.API_BASE || 'http://127.0.0.1:8000/api/v1') + '/streaks';
-const ACH_API_BASE = (window.API_BASE || 'http://127.0.0.1:8000/api/v1') + '/achievements';
+const STREAK_API_BASE = (window.getFitQuestApiBase ? window.getFitQuestApiBase() : (window.API_BASE || 'https://fitquest-backend-1brv.onrender.com/api/v1')) + '/streaks';
+const ACH_API_BASE = (window.getFitQuestApiBase ? window.getFitQuestApiBase() : (window.API_BASE || 'https://fitquest-backend-1brv.onrender.com/api/v1')) + '/achievements';
 
 let activeStreakData = null;
 let activeAchievementsData = null;

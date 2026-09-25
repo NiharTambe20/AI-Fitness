@@ -68,7 +68,10 @@ const EXERCISE_DEFAULT_PRESCRIPTIONS = {
 };
 
 // API Endpoints
-var API_BASE = window.API_BASE || 'http://127.0.0.1:8000/api/v1';
+var API_BASE = window.getFitQuestApiBase ? window.getFitQuestApiBase() : (window.API_BASE || 'https://fitquest-backend-1brv.onrender.com/api/v1');
+// Dedicated Computer Vision & Pose Telemetry Engine Base (Modal ML Microservice)
+// Separated from main application backend to ensure heavy webcam frame streams route directly to Modal
+const ML_API_BASE = window.getFitQuestMlBase ? window.getFitQuestMlBase() : (window.ML_API_BASE || 'https://nihartambe20--fitquest-ml-fastapi-app.modal.run');
 
 document.addEventListener('DOMContentLoaded', () => {
   initTabNavigation();
@@ -1097,7 +1100,7 @@ async function startWorkoutSession() {
 
   // Call start-session backend API
   try {
-    await fetch(`${API_BASE}/workouts/live/start-session`, {
+    await fetch(`${ML_API_BASE}/workouts/live/start-session`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -1206,6 +1209,8 @@ async function startCameraStream() {
 /**
  * Transmits video frames to backend CV Engine via HTTP / WebSocket
  */
+let isProcessingFrame = false;
+
 function startFrameTransmission() {
   const video = document.getElementById('webcamFeed');
   const canvas = document.getElementById('frameCanvas');
@@ -1213,10 +1218,12 @@ function startFrameTransmission() {
   const ctx = canvas ? canvas.getContext('2d') : null;
 
   if (frameCaptureInterval) clearInterval(frameCaptureInterval);
+  isProcessingFrame = false;
 
   // Send frame every 120ms (~8-10 FPS)
   frameCaptureInterval = setInterval(async () => {
     if (!video || video.paused || video.ended || !video.videoWidth) return;
+    if (isProcessingFrame) return;
 
     canvas.width = video.videoWidth || 640;
     canvas.height = video.videoHeight || 480;
@@ -1225,6 +1232,7 @@ function startFrameTransmission() {
     const base64Frame = canvas.toDataURL('image/jpeg', 0.6);
 
     try {
+      isProcessingFrame = true;
       const payload = {
         session_id: activeSessionId,
         exercise_choice: String(selectedExercise.id),
@@ -1232,7 +1240,7 @@ function startFrameTransmission() {
         include_annotated_image: true
       };
 
-      const res = await fetch(`${API_BASE}/workouts/live/process-frame`, {
+      const res = await fetch(`${ML_API_BASE}/workouts/live/process-frame`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -1245,6 +1253,8 @@ function startFrameTransmission() {
 
     } catch (err) {
       console.error('[FitQuest Frame Processing Error]:', err);
+    } finally {
+      isProcessingFrame = false;
     }
   }, 120);
 }
@@ -1430,6 +1440,7 @@ function updateHUDTelemetry(telemetry, overlayElement) {
  * Stops camera stream cleanly and releases webcam hardware
  */
 function stopCameraStream() {
+  isProcessingFrame = false;
   if (frameCaptureInterval) {
     clearInterval(frameCaptureInterval);
     frameCaptureInterval = null;
@@ -1484,7 +1495,7 @@ async function endWorkoutSession() {
 
   // Call stop-session backend API to retrieve final CV summary & movement intelligence
   try {
-    const stopRes = await fetch(`${API_BASE}/workouts/live/stop-session`, {
+    const stopRes = await fetch(`${ML_API_BASE}/workouts/live/stop-session`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ session_id: activeSessionId })
@@ -2393,7 +2404,7 @@ async function launchStructuredExercise() {
 
   // Call start-session backend API to guarantee clean controller initialization
   try {
-    await fetch(`${API_BASE}/workouts/live/start-session`, {
+    await fetch(`${ML_API_BASE}/workouts/live/start-session`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -2531,7 +2542,7 @@ async function handleSingleExerciseSetComplete() {
 
   // 3. Stop active backend CV session cleanly for this set
   try {
-    await fetch(`${API_BASE}/workouts/live/stop-session`, {
+    await fetch(`${ML_API_BASE}/workouts/live/stop-session`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ session_id: activeSessionId })
@@ -2655,7 +2666,7 @@ async function launchNextSingleExerciseSet() {
 
   // Start new backend CV session for this set
   try {
-    await fetch(`${API_BASE}/workouts/live/start-session`, {
+    await fetch(`${ML_API_BASE}/workouts/live/start-session`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

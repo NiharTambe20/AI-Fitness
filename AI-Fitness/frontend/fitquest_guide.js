@@ -152,7 +152,7 @@
     const activePanel = document.querySelector('.view-panel.active');
     const currentViewId = activePanel ? activePanel.id : 'homeView';
 
-    const apiBase = window.API_BASE || 'http://127.0.0.1:8000/api/v1';
+    const apiBase = window.getFitQuestApiBase ? window.getFitQuestApiBase() : (window.API_BASE || 'https://fitquest-backend-1brv.onrender.com/api/v1');
     const endpoint = `${apiBase}/guide/chat`;
 
     try {
