@@ -1619,17 +1619,59 @@ function updateHUDTelemetry(telemetry, overlayElement) {
 }
 
 // ---------------------------------------------------------------------------
-// Real-Time Vector Skeleton Canvas Rendering (Zero JPEG overhead)
+// Real-Time Vector Skeleton Canvas Rendering with Temporal Smoothing
 // ---------------------------------------------------------------------------
-let skeletonRafId = null;
-let lastSkeletonTelemetry = null;
+let currentKeypoints = null;
+let targetKeypoints = null;
+let previousTargetKeypoints = null;
+let currentAngle = null;
+let targetAngle = null;
+let lastValidKeypointTime = 0;
+let skeletonAnimationFrame = null;
+let activeSmoothingFactor = 0.20;
+
+let latestTelemetryMeta = {
+  feedback_code: null,
+  valid: true
+};
+
+const SKELETON_CONNECTIONS = [
+  // Upper body arms (core requirement)
+  ['left_shoulder', 'left_elbow'],
+  ['left_elbow', 'left_wrist'],
+  ['right_shoulder', 'right_elbow'],
+  ['right_elbow', 'right_wrist'],
+
+  // Torso / Shoulders
+  ['left_shoulder', 'right_shoulder'],
+  ['left_shoulder', 'left_hip'],
+  ['right_shoulder', 'right_hip'],
+  ['left_hip', 'right_hip'],
+
+  // Lower body (if available)
+  ['left_hip', 'left_knee'],
+  ['left_knee', 'left_ankle'],
+  ['right_hip', 'right_knee'],
+  ['right_knee', 'right_ankle']
+];
+
+let isSkeletonLoopActive = false;
 
 function clearSkeletonCanvas() {
-  if (skeletonRafId) {
-    cancelAnimationFrame(skeletonRafId);
-    skeletonRafId = null;
+  isSkeletonLoopActive = false;
+  if (skeletonAnimationFrame !== null) {
+    cancelAnimationFrame(skeletonAnimationFrame);
+    skeletonAnimationFrame = null;
   }
-  lastSkeletonTelemetry = null;
+  currentKeypoints = null;
+  targetKeypoints = null;
+  previousTargetKeypoints = null;
+  currentAngle = null;
+  targetAngle = null;
+  lastValidKeypointTime = 0;
+  latestTelemetryMeta.feedback_code = null;
+  latestTelemetryMeta.valid = true;
+
   const canvas = document.getElementById('skeletonCanvas');
   if (canvas) {
     const ctx = canvas.getContext('2d');
@@ -1637,22 +1679,167 @@ function clearSkeletonCanvas() {
   }
 }
 
-function renderSkeletonTelemetry(telemetry) {
-  lastSkeletonTelemetry = telemetry;
-  if (skeletonRafId) {
-    cancelAnimationFrame(skeletonRafId);
+/**
+ * Estimates movement speed between target poses to adapt smoothing responsiveness
+ * Stays strictly within [0.18, 0.25] to ensure zero overshoot
+ */
+function computeTargetVelocityFactor(prevTarget, newTarget) {
+  if (!prevTarget || !newTarget) return 0.20;
+  const checkJoints = ['left_wrist', 'right_wrist', 'left_elbow', 'right_elbow'];
+  let totalDist = 0;
+  let count = 0;
+  for (let i = 0; i < checkJoints.length; i++) {
+    const j = checkJoints[i];
+    if (prevTarget[j] && newTarget[j]) {
+      const dx = newTarget[j][0] - prevTarget[j][0];
+      const dy = newTarget[j][1] - prevTarget[j][1];
+      totalDist += Math.sqrt(dx * dx + dy * dy);
+      count++;
+    }
   }
-  skeletonRafId = requestAnimationFrame(() => {
-    skeletonRafId = null;
-    drawSkeletonOnCanvas(lastSkeletonTelemetry);
-  });
+  if (count === 0) return 0.20;
+  const avgDist = totalDist / count;
+  if (avgDist > 0.04) return 0.25;
+  if (avgDist > 0.02) return 0.22;
+  return 0.18;
 }
 
-function drawSkeletonOnCanvas(telemetry) {
-  const canvas = document.getElementById('skeletonCanvas');
-  const video = document.getElementById('webcamFeed');
-  if (!canvas || !video) return;
+/**
+ * Smoothly interpolates current coordinates toward target in place
+ * Never lerps missing landmarks to [0, 0]
+ */
+function interpolateKeypoints(current, target, factor) {
+  if (!target) return current;
+  if (!current) {
+    const initial = {};
+    for (const [k, v] of Object.entries(target)) {
+      if (Array.isArray(v) && v.length >= 2) {
+        initial[k] = [v[0], v[1]];
+      }
+    }
+    return initial;
+  }
 
+  for (const [k, targetPt] of Object.entries(target)) {
+    if (!Array.isArray(targetPt) || targetPt.length < 2) continue;
+    if (!current[k]) {
+      current[k] = [targetPt[0], targetPt[1]];
+    } else {
+      // In-place exponential smoothing avoids per-frame object churn
+      current[k][0] += (targetPt[0] - current[k][0]) * factor;
+      current[k][1] += (targetPt[1] - current[k][1]) * factor;
+    }
+  }
+
+  // Landmarks present in current but absent from target remain held at last known coordinates
+  return current;
+}
+
+function renderSkeletonTelemetry(telemetry) {
+  if (!telemetry) return;
+
+  if (telemetry.valid === false || !telemetry.keypoints) {
+    if (telemetry.feedback_code === 'LANDMARKS_MISSING') {
+      latestTelemetryMeta.feedback_code = 'LANDMARKS_MISSING';
+    }
+    return;
+  }
+
+  previousTargetKeypoints = targetKeypoints;
+  targetKeypoints = telemetry.keypoints;
+  lastValidKeypointTime = performance.now();
+
+  latestTelemetryMeta.feedback_code = telemetry.feedback_code;
+  latestTelemetryMeta.valid = telemetry.valid;
+
+  if (telemetry.primary_angle !== undefined && telemetry.primary_angle !== null) {
+    targetAngle = telemetry.primary_angle;
+    if (currentAngle === null) {
+      currentAngle = targetAngle;
+    }
+  }
+
+  activeSmoothingFactor = computeTargetVelocityFactor(previousTargetKeypoints, targetKeypoints);
+
+  // Initialize currentKeypoints on first arrival for instant display without jump from origin
+  if (!currentKeypoints) {
+    currentKeypoints = {};
+    for (const [k, pt] of Object.entries(targetKeypoints)) {
+      if (Array.isArray(pt) && pt.length >= 2) {
+        currentKeypoints[k] = [pt[0], pt[1]];
+      }
+    }
+    if (targetAngle !== null) {
+      currentAngle = targetAngle;
+    }
+  }
+
+  // Ensure continuous animation loop is active
+  startSkeletonRenderLoop();
+}
+
+function startSkeletonRenderLoop() {
+  if (isSkeletonLoopActive) {
+    return; // Exactly ONE loop is running
+  }
+  isSkeletonLoopActive = true;
+  skeletonAnimationFrame = requestAnimationFrame(skeletonRenderLoop);
+}
+
+function skeletonRenderLoop() {
+  if (!isSkeletonLoopActive) {
+    return; // Loop was deactivated
+  }
+
+  const video = document.getElementById('webcamFeed');
+  const canvas = document.getElementById('skeletonCanvas');
+  if (!video || !canvas || !webcamStream || !webcamStream.active) {
+    clearSkeletonCanvas();
+    return;
+  }
+
+  const now = performance.now();
+  const elapsedSinceValid = now - lastValidKeypointTime;
+
+  // Grace period handling:
+  // If > 2200ms without valid telemetry, clear canvas
+  if (lastValidKeypointTime > 0 && elapsedSinceValid > 2200) {
+    const ctx = canvas.getContext('2d');
+    if (ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
+    // Keep loop active while webcam stream is active
+    skeletonAnimationFrame = requestAnimationFrame(skeletonRenderLoop);
+    return;
+  }
+
+  // Compute opacity: full opacity during grace hold (<= 1400ms), then smoothly fade over 800ms
+  let opacity = 1.0;
+  if (elapsedSinceValid > 1400) {
+    opacity = Math.max(0, 1.0 - (elapsedSinceValid - 1400) / 800);
+  }
+
+  // Smoothly move currentKeypoints toward targetKeypoints
+  if (currentKeypoints && targetKeypoints) {
+    interpolateKeypoints(currentKeypoints, targetKeypoints, activeSmoothingFactor);
+  }
+
+  // Smoothly move currentAngle toward targetAngle
+  if (currentAngle !== null && targetAngle !== null) {
+    currentAngle += (targetAngle - currentAngle) * activeSmoothingFactor;
+  }
+
+  // Draw current smoothed keypoints to canvas
+  if (currentKeypoints && opacity > 0.01) {
+    drawSmoothedSkeleton(canvas, video, currentKeypoints, currentAngle, latestTelemetryMeta, opacity);
+  } else {
+    const ctx = canvas.getContext('2d');
+    if (ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
+  }
+
+  // Continue single continuous rAF loop at browser refresh rate
+  skeletonAnimationFrame = requestAnimationFrame(skeletonRenderLoop);
+}
+
+function drawSmoothedSkeleton(canvas, video, keypoints, angleVal, meta, opacity) {
   const ctx = canvas.getContext('2d');
   if (!ctx) return;
 
@@ -1676,13 +1863,7 @@ function drawSkeletonOnCanvas(telemetry) {
   ctx.save();
   ctx.scale(dpr, dpr);
   ctx.clearRect(0, 0, w, h);
-
-  if (!telemetry || !telemetry.keypoints || telemetry.valid === false) {
-    ctx.restore();
-    return;
-  }
-
-  const keypoints = telemetry.keypoints;
+  ctx.globalAlpha = opacity;
 
   // Calculate object-fit: contain dimensions of video inside container
   const vw = video.videoWidth || 640;
@@ -1712,33 +1893,13 @@ function drawSkeletonOnCanvas(telemetry) {
   }
 
   // Dynamic aesthetic styling matching trainer HUD
-  const isAlert = telemetry.feedback_code === 'LANDMARKS_MISSING' || telemetry.valid === false;
-  const isWarn = telemetry.feedback_code && telemetry.feedback_code !== 'GOOD_FORM' && !isAlert;
-  const boneColor = isAlert ? 'rgba(239, 68, 68, 0.8)' : (isWarn ? 'rgba(245, 158, 11, 0.85)' : 'rgba(0, 229, 255, 0.85)');
+  const isAlert = meta.feedback_code === 'LANDMARKS_MISSING' || meta.valid === false;
+  const isWarn = meta.feedback_code && meta.feedback_code !== 'GOOD_FORM' && !isAlert;
+  const boneColor = isAlert ? 'rgba(239, 68, 68, 0.85)' : (isWarn ? 'rgba(245, 158, 11, 0.85)' : 'rgba(0, 229, 255, 0.85)');
   const jointColor = isAlert ? '#ef4444' : (isWarn ? '#f59e0b' : '#00e5ff');
   const glowColor = isAlert ? 'rgba(239, 68, 68, 0.4)' : (isWarn ? 'rgba(245, 158, 11, 0.4)' : 'rgba(0, 229, 255, 0.4)');
 
   // 1. Draw Bones / Connections
-  const SKELETON_CONNECTIONS = [
-    // Upper body arms (core requirement)
-    ['left_shoulder', 'left_elbow'],
-    ['left_elbow', 'left_wrist'],
-    ['right_shoulder', 'right_elbow'],
-    ['right_elbow', 'right_wrist'],
-
-    // Torso / Shoulders
-    ['left_shoulder', 'right_shoulder'],
-    ['left_shoulder', 'left_hip'],
-    ['right_shoulder', 'right_hip'],
-    ['left_hip', 'right_hip'],
-
-    // Lower body (if available)
-    ['left_hip', 'left_knee'],
-    ['left_knee', 'left_ankle'],
-    ['right_hip', 'right_knee'],
-    ['right_knee', 'right_ankle']
-  ];
-
   ctx.lineWidth = 3.5;
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
@@ -1759,7 +1920,7 @@ function drawSkeletonOnCanvas(telemetry) {
   }
 
   // 2. Draw Joint Markers
-  ctx.shadowBlur = 0; // reset blur for crisp joints
+  ctx.shadowBlur = 0; // Reset blur for crisp joints
   const kpEntries = Object.entries(keypoints);
   for (let i = 0; i < kpEntries.length; i++) {
     const pt = toCanvasCoords(kpEntries[i][1]);
@@ -1779,8 +1940,8 @@ function drawSkeletonOnCanvas(telemetry) {
   }
 
   // 3. Display current elbow angle near the relevant elbow
-  if (telemetry.primary_angle !== undefined && telemetry.primary_angle !== null) {
-    const angle = Math.round(telemetry.primary_angle);
+  if (angleVal !== undefined && angleVal !== null) {
+    const angle = Math.round(angleVal);
     let elbowPt = toCanvasCoords(keypoints['left_elbow']) || toCanvasCoords(keypoints['right_elbow']);
     if (keypoints['left_elbow'] && keypoints['right_elbow']) {
       // Position on the side with the smaller/active angle or left elbow
@@ -1822,8 +1983,8 @@ function drawSkeletonOnCanvas(telemetry) {
 }
 
 window.addEventListener('resize', () => {
-  if (lastSkeletonTelemetry && webcamStream && webcamStream.active) {
-    drawSkeletonOnCanvas(lastSkeletonTelemetry);
+  if (currentKeypoints && webcamStream && webcamStream.active && !isSkeletonLoopActive) {
+    startSkeletonRenderLoop();
   }
 });
 
