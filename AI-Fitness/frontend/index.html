@@ -3649,11 +3649,28 @@
 
   <!-- Global API Config -->
   <script>
-    window.API_BASE = window.API_BASE || (
-      (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || !window.location.hostname)
-        ? 'http://127.0.0.1:8000/api/v1'
-        : '/api/v1'
-    );
+    (function() {
+      var isLocalDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || !window.location.hostname;
+
+      // Main FitQuest Backend API (Authentication, Workouts DB, Analytics, AI Coaching)
+      window.API_BASE = window.API_BASE || (
+        isLocalDev ? 'http://127.0.0.1:8000/api/v1' : '/api/v1'
+      );
+
+      // Dedicated Standalone Modal ML / Computer Vision Microservice URL
+      var PRODUCTION_MODAL_ML_URL = 'https://nihartambe20--fitquest-ml-fastapi-app-dev.modal.run';
+
+      // Standalone ML Engine API Base for Live Computer Vision & Pose Telemetry
+      // Priority:
+      // 1. Explicit window.ML_API_BASE (allows custom runtime or test overrides)
+      // 2. Production: Always routes webcam/CV frame processing to the deployed Modal ML service
+      // 3. Local dev: Defaults to deployed Modal service, with optional local ML service toggle (port 8100)
+      window.ML_API_BASE = window.ML_API_BASE || (
+        isLocalDev
+          ? (window.USE_LOCAL_ML ? 'http://127.0.0.1:8100' : PRODUCTION_MODAL_ML_URL)
+          : PRODUCTION_MODAL_ML_URL
+      );
+    })();
   </script>
 
   <script src="landing.js"></script>
