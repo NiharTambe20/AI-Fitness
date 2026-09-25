@@ -68,14 +68,10 @@ const EXERCISE_DEFAULT_PRESCRIPTIONS = {
 };
 
 // API Endpoints
-var API_BASE = window.API_BASE || 'http://127.0.0.1:8000/api/v1';
+var API_BASE = window.getFitQuestApiBase ? window.getFitQuestApiBase() : (window.API_BASE || 'https://fitquest-backend-1brv.onrender.com/api/v1');
 // Dedicated Computer Vision & Pose Telemetry Engine Base (Modal ML Microservice)
 // Separated from main application backend to ensure heavy webcam frame streams route directly to Modal
-const ML_API_BASE = window.ML_API_BASE || (
-  (typeof window !== 'undefined' && window.location && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'))
-    ? (window.USE_LOCAL_ML ? 'http://127.0.0.1:8100' : 'https://nihartambe20--fitquest-ml-fastapi-app-dev.modal.run')
-    : 'https://nihartambe20--fitquest-ml-fastapi-app-dev.modal.run'
-);
+const ML_API_BASE = window.getFitQuestMlBase ? window.getFitQuestMlBase() : (window.ML_API_BASE || 'https://nihartambe20--fitquest-ml-fastapi-app-dev.modal.run');
 
 document.addEventListener('DOMContentLoaded', () => {
   initTabNavigation();

@@ -11,6 +11,10 @@ let currentTodaySummary = null;
 let pendingFoodAnalysisResult = null;
 let selectedFoodPhotoBase64 = null;
 
+function getNutritionApiBase() {
+  return window.getFitQuestApiBase ? window.getFitQuestApiBase() : (window.API_BASE || 'https://fitquest-backend-1brv.onrender.com/api/v1');
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   // Check if nutrition view is active on initial load
   const activePanel = document.querySelector('.view-panel.active');
@@ -29,7 +33,7 @@ async function loadNutritionView() {
     return;
   }
 
-  const apiBase = window.API_BASE || 'http://127.0.0.1:8000/api/v1';
+  const apiBase = getNutritionApiBase();
 
   try {
     // 1. Fetch Today's Nutrition Summary
@@ -340,7 +344,7 @@ async function regenerateIndividualMeal(dayNum, mealType, event) {
     btn.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin"></i> Swapping...`;
   }
 
-  const apiBase = window.API_BASE || 'http://127.0.0.1:8000/api/v1';
+  const apiBase = getNutritionApiBase();
 
   try {
     const res = await fetch(`${apiBase}/nutrition/meal/regenerate`, {
@@ -389,7 +393,7 @@ async function generateOrRefreshMealPlan(force = true) {
     `;
   }
 
-  const apiBase = window.API_BASE || 'http://127.0.0.1:8000/api/v1';
+  const apiBase = getNutritionApiBase();
 
   try {
     const res = await fetch(`${apiBase}/nutrition/plan/generate?force=${force}`, {
@@ -453,7 +457,7 @@ async function handleMealLogSubmit(e) {
     submitBtn.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin"></i> Logging...`;
   }
 
-  const apiBase = window.API_BASE || 'http://127.0.0.1:8000/api/v1';
+  const apiBase = getNutritionApiBase();
 
   try {
     const res = await fetch(`${apiBase}/nutrition/meal/log`, {
@@ -551,7 +555,7 @@ async function deleteMealLog(logId) {
   const token = typeof getAuthToken === 'function' ? getAuthToken() : localStorage.getItem('fitquest_token');
   if (!token) return;
 
-  const apiBase = window.API_BASE || 'http://127.0.0.1:8000/api/v1';
+  const apiBase = getNutritionApiBase();
 
   try {
     const res = await fetch(`${apiBase}/nutrition/meal/log/${logId}`, {
@@ -694,7 +698,7 @@ async function handleNutritionPreferencesSubmit(e) {
     btn.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin"></i> Saving...`;
   }
 
-  const apiBase = window.API_BASE || 'http://127.0.0.1:8000/api/v1';
+  const apiBase = getNutritionApiBase();
 
   try {
     const res = await fetch(`${apiBase}/nutrition/profile`, {
@@ -798,7 +802,7 @@ async function runFoodAnalysis() {
     btn.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin"></i> Analyzing with AI...`;
   }
 
-  const apiBase = window.API_BASE || 'http://127.0.0.1:8000/api/v1';
+  const apiBase = getNutritionApiBase();
 
   try {
     const res = await fetch(`${apiBase}/nutrition/analyze-food`, {
@@ -881,7 +885,7 @@ async function logAnalyzedMealToToday() {
     btn.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin"></i> Logging to Tracker...`;
   }
 
-  const apiBase = window.API_BASE || 'http://127.0.0.1:8000/api/v1';
+  const apiBase = getNutritionApiBase();
 
   try {
     const res = await fetch(`${apiBase}/nutrition/meal/log`, {

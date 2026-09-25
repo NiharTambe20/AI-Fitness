@@ -20,7 +20,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const chipBtns = document.querySelectorAll('.chip-btn');
 
   // Backend API Target Endpoint
-  const API_ENDPOINT = (window.API_BASE || 'http://127.0.0.1:8000/api/v1') + '/ai/qa';
+  const API_ENDPOINT = (window.getFitQuestApiBase ? window.getFitQuestApiBase() : (window.API_BASE || 'https://fitquest-backend-1brv.onrender.com/api/v1')) + '/ai/qa';
 
   // Handle Form Submission
   if (chatForm) {
