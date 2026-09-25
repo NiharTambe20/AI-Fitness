@@ -1609,17 +1609,230 @@ function updateHUDTelemetry(telemetry, overlayElement) {
     }
   }
 
+  // Real-time vector skeleton overlay on transparent canvas
+  renderSkeletonTelemetry(telemetry);
+
   // Feed real-time telemetry into Movement Copilot (Phase 5)
   if (typeof processCopilotTelemetry === 'function') {
     processCopilotTelemetry(telemetry);
   }
 }
 
+// ---------------------------------------------------------------------------
+// Real-Time Vector Skeleton Canvas Rendering (Zero JPEG overhead)
+// ---------------------------------------------------------------------------
+let skeletonRafId = null;
+let lastSkeletonTelemetry = null;
+
+function clearSkeletonCanvas() {
+  if (skeletonRafId) {
+    cancelAnimationFrame(skeletonRafId);
+    skeletonRafId = null;
+  }
+  lastSkeletonTelemetry = null;
+  const canvas = document.getElementById('skeletonCanvas');
+  if (canvas) {
+    const ctx = canvas.getContext('2d');
+    if (ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
+  }
+}
+
+function renderSkeletonTelemetry(telemetry) {
+  lastSkeletonTelemetry = telemetry;
+  if (skeletonRafId) {
+    cancelAnimationFrame(skeletonRafId);
+  }
+  skeletonRafId = requestAnimationFrame(() => {
+    skeletonRafId = null;
+    drawSkeletonOnCanvas(lastSkeletonTelemetry);
+  });
+}
+
+function drawSkeletonOnCanvas(telemetry) {
+  const canvas = document.getElementById('skeletonCanvas');
+  const video = document.getElementById('webcamFeed');
+  if (!canvas || !video) return;
+
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return;
+
+  const container = canvas.parentElement;
+  if (!container) return;
+
+  const rect = container.getBoundingClientRect();
+  const dpr = window.devicePixelRatio || 1;
+  const w = Math.round(rect.width);
+  const h = Math.round(rect.height);
+
+  if (w <= 0 || h <= 0) return;
+
+  const targetBufW = Math.round(w * dpr);
+  const targetBufH = Math.round(h * dpr);
+  if (canvas.width !== targetBufW || canvas.height !== targetBufH) {
+    canvas.width = targetBufW;
+    canvas.height = targetBufH;
+  }
+
+  ctx.save();
+  ctx.scale(dpr, dpr);
+  ctx.clearRect(0, 0, w, h);
+
+  if (!telemetry || !telemetry.keypoints || telemetry.valid === false) {
+    ctx.restore();
+    return;
+  }
+
+  const keypoints = telemetry.keypoints;
+
+  // Calculate object-fit: contain dimensions of video inside container
+  const vw = video.videoWidth || 640;
+  const vh = video.videoHeight || 480;
+  const containerAspect = w / h;
+  const videoAspect = vw / vh;
+
+  let renderW, renderH, offsetX, offsetY;
+  if (videoAspect > containerAspect) {
+    renderW = w;
+    renderH = w / videoAspect;
+    offsetX = 0;
+    offsetY = (h - renderH) / 2;
+  } else {
+    renderH = h;
+    renderW = h * videoAspect;
+    offsetX = (w - renderW) / 2;
+    offsetY = 0;
+  }
+
+  function toCanvasCoords(pt) {
+    if (!pt || !Array.isArray(pt) || pt.length < 2) return null;
+    return {
+      x: offsetX + pt[0] * renderW,
+      y: offsetY + pt[1] * renderH
+    };
+  }
+
+  // Dynamic aesthetic styling matching trainer HUD
+  const isAlert = telemetry.feedback_code === 'LANDMARKS_MISSING' || telemetry.valid === false;
+  const isWarn = telemetry.feedback_code && telemetry.feedback_code !== 'GOOD_FORM' && !isAlert;
+  const boneColor = isAlert ? 'rgba(239, 68, 68, 0.8)' : (isWarn ? 'rgba(245, 158, 11, 0.85)' : 'rgba(0, 229, 255, 0.85)');
+  const jointColor = isAlert ? '#ef4444' : (isWarn ? '#f59e0b' : '#00e5ff');
+  const glowColor = isAlert ? 'rgba(239, 68, 68, 0.4)' : (isWarn ? 'rgba(245, 158, 11, 0.4)' : 'rgba(0, 229, 255, 0.4)');
+
+  // 1. Draw Bones / Connections
+  const SKELETON_CONNECTIONS = [
+    // Upper body arms (core requirement)
+    ['left_shoulder', 'left_elbow'],
+    ['left_elbow', 'left_wrist'],
+    ['right_shoulder', 'right_elbow'],
+    ['right_elbow', 'right_wrist'],
+
+    // Torso / Shoulders
+    ['left_shoulder', 'right_shoulder'],
+    ['left_shoulder', 'left_hip'],
+    ['right_shoulder', 'right_hip'],
+    ['left_hip', 'right_hip'],
+
+    // Lower body (if available)
+    ['left_hip', 'left_knee'],
+    ['left_knee', 'left_ankle'],
+    ['right_hip', 'right_knee'],
+    ['right_knee', 'right_ankle']
+  ];
+
+  ctx.lineWidth = 3.5;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  ctx.strokeStyle = boneColor;
+  ctx.shadowColor = glowColor;
+  ctx.shadowBlur = 8;
+
+  for (let i = 0; i < SKELETON_CONNECTIONS.length; i++) {
+    const conn = SKELETON_CONNECTIONS[i];
+    const pt1 = toCanvasCoords(keypoints[conn[0]]);
+    const pt2 = toCanvasCoords(keypoints[conn[1]]);
+    if (pt1 && pt2) {
+      ctx.beginPath();
+      ctx.moveTo(pt1.x, pt1.y);
+      ctx.lineTo(pt2.x, pt2.y);
+      ctx.stroke();
+    }
+  }
+
+  // 2. Draw Joint Markers
+  ctx.shadowBlur = 0; // reset blur for crisp joints
+  const kpEntries = Object.entries(keypoints);
+  for (let i = 0; i < kpEntries.length; i++) {
+    const pt = toCanvasCoords(kpEntries[i][1]);
+    if (!pt) continue;
+
+    // Outer circle
+    ctx.beginPath();
+    ctx.arc(pt.x, pt.y, 5, 0, Math.PI * 2);
+    ctx.fillStyle = jointColor;
+    ctx.fill();
+
+    // Inner bright white center
+    ctx.beginPath();
+    ctx.arc(pt.x, pt.y, 2.5, 0, Math.PI * 2);
+    ctx.fillStyle = '#ffffff';
+    ctx.fill();
+  }
+
+  // 3. Display current elbow angle near the relevant elbow
+  if (telemetry.primary_angle !== undefined && telemetry.primary_angle !== null) {
+    const angle = Math.round(telemetry.primary_angle);
+    let elbowPt = toCanvasCoords(keypoints['left_elbow']) || toCanvasCoords(keypoints['right_elbow']);
+    if (keypoints['left_elbow'] && keypoints['right_elbow']) {
+      // Position on the side with the smaller/active angle or left elbow
+      elbowPt = toCanvasCoords(keypoints['left_elbow']);
+    }
+
+    if (elbowPt) {
+      const text = `${angle}°`;
+      ctx.font = '700 12px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+      const textWidth = ctx.measureText(text).width;
+      const padX = 7;
+      const padY = 4;
+      const boxW = textWidth + padX * 2;
+      const boxH = 20;
+      const badgeX = elbowPt.x + 10;
+      const badgeY = elbowPt.y - 10;
+
+      // Pill background
+      ctx.beginPath();
+      if (typeof ctx.roundRect === 'function') {
+        ctx.roundRect(badgeX, badgeY, boxW, boxH, 6);
+      } else {
+        ctx.rect(badgeX, badgeY, boxW, boxH);
+      }
+      ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
+      ctx.fill();
+      ctx.strokeStyle = jointColor;
+      ctx.lineWidth = 1.2;
+      ctx.stroke();
+
+      // Text
+      ctx.fillStyle = '#ffffff';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(text, badgeX + padX, badgeY + boxH / 2);
+    }
+  }
+
+  ctx.restore();
+}
+
+window.addEventListener('resize', () => {
+  if (lastSkeletonTelemetry && webcamStream && webcamStream.active) {
+    drawSkeletonOnCanvas(lastSkeletonTelemetry);
+  }
+});
+
 /**
  * Stops camera stream cleanly and releases webcam hardware
  */
 function stopCameraStream() {
   stopFrameTransmission();
+  clearSkeletonCanvas();
 
   if (webcamStream) {
     webcamStream.getTracks().forEach((track) => {

@@ -71,7 +71,7 @@ class LiveFrameProcessRequest(BaseModel):
     session_id: str = "default_session"
     exercise_choice: str = "1"
     frame_data: str
-    include_annotated_image: Optional[bool] = True
+    include_annotated_image: Optional[bool] = False
 
 class LiveSessionStopRequest(BaseModel):
     session_id: str = "default_session"

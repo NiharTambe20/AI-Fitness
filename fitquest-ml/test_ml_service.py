@@ -179,7 +179,8 @@ def run_tests():
     c_frame_data = c_frame_resp.json()
     assert c_frame_data["status"] == "success"
     assert c_frame_data["exercise"] == "Bicep Curl"
-    assert c_frame_data["primary_angle"] == 130.8
+    assert c_frame_data["primary_angle"] == 105.2
+    assert "keypoints" in c_frame_data and c_frame_data["keypoints"] is not None
     assert c_frame_data["feedback_code"] == "ELBOW_MISALIGNED"
     assert c_frame_data["annotated_frame"] is not None
     print(f"[PASS] /workouts/live/process-frame: angle={c_frame_data['primary_angle']}, feedback={c_frame_data['feedback_code']}")

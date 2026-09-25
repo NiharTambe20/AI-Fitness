@@ -1746,7 +1746,8 @@
                     <span class="pulse-dot"></span> LIVE CAMERA
                   </div>
                   <video id="webcamFeed" class="camera-video" autoplay playsinline muted></video>
-                  <img id="overlayImage" class="camera-overlay" alt="YOLO Pose Skeleton Overlay">
+                  <canvas id="skeletonCanvas" class="camera-overlay"></canvas>
+                  <img id="overlayImage" class="camera-overlay" alt="YOLO Pose Skeleton Overlay" style="display: none;">
                   <canvas id="frameCanvas" style="display: none;"></canvas>
                   
                   <div id="cameraPlaceholder" class="camera-placeholder">

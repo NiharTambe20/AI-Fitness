@@ -174,7 +174,8 @@ class CVLiveService:
                 "feedback_detail": "Position your body and key joints clearly in camera view.",
                 "feedback_priority": 1,
                 "valid": False,
-                "annotated_frame": None
+                "annotated_frame": None,
+                "keypoints": None
             }
 
         # 3. Capture Telemetry Snapshot in Session Buffer if active
@@ -226,13 +227,27 @@ class CVLiveService:
         if target_buf:
             target_buf.add_sample(sample)
 
-        # 4. Optionally encode annotated frame with skeleton HUD overlay back to base64 JPEG
+        # 4. Extract normalized keypoints for lightweight frontend canvas skeleton rendering
+        norm_keypoints = None
+        if tracker_info.get("valid", True) and keypoints:
+            h, w = frame.shape[:2]
+            if h > 0 and w > 0:
+                extracted = {}
+                for lm, pt in keypoints.items():
+                    if pt.get("valid", False):
+                        nx = max(0.0, min(1.0, float(pt["x"]) / w))
+                        ny = max(0.0, min(1.0, float(pt["y"]) / h))
+                        extracted[lm] = [round(nx, 4), round(ny, 4)]
+                if extracted:
+                    norm_keypoints = extracted
+
+        # 5. Optionally encode annotated frame with skeleton HUD overlay back to base64 JPEG
         annotated_b64 = None
         if include_annotated_image and annotated_frame is not None:
             _, buffer = cv2.imencode('.jpg', annotated_frame, [int(cv2.IMWRITE_JPEG_QUALITY), 70])
             annotated_b64 = "data:image/jpeg;base64," + base64.b64encode(buffer).decode('utf-8')
 
-        # 5. Return live telemetry payload
+        # 6. Return live telemetry payload
         return {
             "status": "success",
             "exercise": tracker_info["exercise"],
@@ -246,7 +261,8 @@ class CVLiveService:
             "feedback_detail": tracker_info.get("feedback_detail", tracker_info["feedback"][0] if tracker_info.get("feedback") else "Good form"),
             "feedback_priority": tracker_info.get("feedback_priority", 7),
             "valid": tracker_info["valid"],
-            "annotated_frame": annotated_b64
+            "annotated_frame": annotated_b64,
+            "keypoints": norm_keypoints
         }
 
     def process_base64_frame(
