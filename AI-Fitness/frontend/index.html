@@ -3652,9 +3652,12 @@
     (function() {
       var isLocalDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || !window.location.hostname;
 
+      // Production Main FitQuest Backend API (Render)
+      var PRODUCTION_BACKEND_URL = 'https://fitquest-backend-1brv.onrender.com/api/v1';
+
       // Main FitQuest Backend API (Authentication, Workouts DB, Analytics, AI Coaching)
       window.API_BASE = window.API_BASE || (
-        isLocalDev ? 'http://127.0.0.1:8000/api/v1' : '/api/v1'
+        isLocalDev ? 'http://127.0.0.1:8000/api/v1' : PRODUCTION_BACKEND_URL
       );
 
       // Dedicated Standalone Modal ML / Computer Vision Microservice URL
