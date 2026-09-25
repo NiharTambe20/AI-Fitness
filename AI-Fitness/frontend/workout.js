@@ -1425,6 +1425,12 @@ let lastFeedbackUpdateTime = 0;
 const FEEDBACK_HOLD_MS = 450;
 
 function formatTrainerCue(code, rawDetail) {
+  // If specific rawDetail/feedback_detail is provided for LANDMARKS_MISSING, prefer backend's cue
+  if (code === 'LANDMARKS_MISSING' && rawDetail && typeof rawDetail === 'string' && rawDetail.trim().length > 0) {
+    const cleaned = rawDetail.replace(/^(error|warning|issue|alert):\s*/i, '').trim();
+    if (cleaned.length > 0) return cleaned;
+  }
+
   const codeMap = {
     'LANDMARKS_MISSING': 'Step back so your full body is visible.',
     'ELBOW_FLARING': 'Keep your elbows closer to your sides.',

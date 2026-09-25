@@ -14,7 +14,7 @@ class BicepCurlTracker(BaseExerciseTracker):
     Measures Shoulder -> Elbow -> Wrist angle.
     States: EXTENDED (>145 deg) <-> CURLED (<65 deg)
     """
-    def __init__(self, extended_angle=145.0, curled_angle=65.0, debounce_sec=0.4):
+    def __init__(self, extended_angle=140.0, curled_angle=80.0, debounce_sec=0.4):
         super().__init__("Bicep Curl")
         self.extended_angle = extended_angle
         self.curled_angle = curled_angle
@@ -23,21 +23,27 @@ class BicepCurlTracker(BaseExerciseTracker):
         self.state = "EXTENDED"
         self.last_rep_time = 0.0
 
-        self.left_elbow_smoother = AngleSmoother(alpha=0.35)
-        self.right_elbow_smoother = AngleSmoother(alpha=0.35)
+        self.left_elbow_smoother = AngleSmoother(alpha=0.65)
+        self.right_elbow_smoother = AngleSmoother(alpha=0.65)
         self.min_angle_in_rep = 180.0
+        self.curled_arm = None
 
     def process(self, keypoints):
         left_valid = are_landmarks_valid(keypoints, ["left_shoulder", "left_elbow", "left_wrist"])
         right_valid = are_landmarks_valid(keypoints, ["right_shoulder", "right_elbow", "right_wrist"])
 
+        left_angle = None
+        right_angle = None
         elbow_angles = []
+
         if left_valid:
             raw_l = calculate_angle(keypoints["left_shoulder"], keypoints["left_elbow"], keypoints["left_wrist"])
-            elbow_angles.append(self.left_elbow_smoother.update(raw_l))
+            left_angle = self.left_elbow_smoother.update(raw_l)
+            elbow_angles.append(left_angle)
         if right_valid:
             raw_r = calculate_angle(keypoints["right_shoulder"], keypoints["right_elbow"], keypoints["right_wrist"])
-            elbow_angles.append(self.right_elbow_smoother.update(raw_r))
+            right_angle = self.right_elbow_smoother.update(raw_r)
+            elbow_angles.append(right_angle)
 
         if not elbow_angles:
             return self.build_result(
@@ -49,7 +55,7 @@ class BicepCurlTracker(BaseExerciseTracker):
                 feedback_priority=1
             )
 
-        avg_elbow_angle = float(np.mean(elbow_angles))
+        active_elbow_angle = float(min(elbow_angles))
         feedback_list = []
         is_good_form = True
         fb_code = "GOOD_FORM"
@@ -58,8 +64,21 @@ class BicepCurlTracker(BaseExerciseTracker):
         now = time.time()
 
         # Check for upper arm / elbow sway alignment
-        p_sh = get_landmark_point(keypoints, "left_shoulder") or get_landmark_point(keypoints, "right_shoulder")
-        p_el = get_landmark_point(keypoints, "left_elbow") or get_landmark_point(keypoints, "right_elbow")
+        p_sh = None
+        p_el = None
+        if self.curled_arm == "right" and right_valid:
+            p_sh = get_landmark_point(keypoints, "right_shoulder")
+            p_el = get_landmark_point(keypoints, "right_elbow")
+        elif (self.curled_arm == "left" or left_valid) and left_valid:
+            p_sh = get_landmark_point(keypoints, "left_shoulder")
+            p_el = get_landmark_point(keypoints, "left_elbow")
+        elif right_valid:
+            p_sh = get_landmark_point(keypoints, "right_shoulder")
+            p_el = get_landmark_point(keypoints, "right_elbow")
+        else:
+            p_sh = get_landmark_point(keypoints, "left_shoulder") or get_landmark_point(keypoints, "right_shoulder")
+            p_el = get_landmark_point(keypoints, "left_elbow") or get_landmark_point(keypoints, "right_elbow")
+
         if p_sh and p_el:
             # If elbow drifts too far horizontally relative to shoulder
             dx_elbow = abs(p_el[0] - p_sh[0])
@@ -71,9 +90,21 @@ class BicepCurlTracker(BaseExerciseTracker):
                 fb_priority = 3
 
         if self.state == "EXTENDED":
-            if avg_elbow_angle <= self.curled_angle:
+            if active_elbow_angle <= self.curled_angle:
                 self.state = "CURLED"
-                self.min_angle_in_rep = avg_elbow_angle
+                self.min_angle_in_rep = active_elbow_angle
+                if left_angle is not None and right_angle is not None:
+                    if left_angle <= self.curled_angle and right_angle <= self.curled_angle:
+                        self.curled_arm = "both"
+                    elif left_angle <= right_angle:
+                        self.curled_arm = "left"
+                    else:
+                        self.curled_arm = "right"
+                elif left_angle is not None:
+                    self.curled_arm = "left"
+                else:
+                    self.curled_arm = "right"
+
                 if is_good_form:
                     feedback_list.append("Good curl! Lower arms")
                     fb_code = "GOOD_FORM"
@@ -87,10 +118,28 @@ class BicepCurlTracker(BaseExerciseTracker):
                     fb_priority = 7
 
         elif self.state == "CURLED":
-            if avg_elbow_angle < self.min_angle_in_rep:
-                self.min_angle_in_rep = avg_elbow_angle
+            if active_elbow_angle < self.min_angle_in_rep:
+                self.min_angle_in_rep = active_elbow_angle
 
-            if avg_elbow_angle >= self.extended_angle:
+            # If both arms curl during this repetition, track both
+            if self.curled_arm != "both":
+                if left_angle is not None and right_angle is not None:
+                    if left_angle <= self.curled_angle and right_angle <= self.curled_angle:
+                        self.curled_arm = "both"
+
+            # Check if curled arm(s) returned to extension
+            is_extended = False
+            if self.curled_arm == "left":
+                is_extended = (left_angle is not None and left_angle >= self.extended_angle)
+            elif self.curled_arm == "right":
+                is_extended = (right_angle is not None and right_angle >= self.extended_angle)
+            elif self.curled_arm == "both":
+                valid_curled = [a for a in (left_angle, right_angle) if a is not None]
+                is_extended = len(valid_curled) > 0 and any(a >= self.extended_angle for a in valid_curled)
+            else:
+                is_extended = active_elbow_angle >= self.extended_angle
+
+            if is_extended:
                 if (now - self.last_rep_time) >= self.debounce_sec:
                     self.rep_count += 1
                     self.last_rep_time = now
@@ -111,6 +160,7 @@ class BicepCurlTracker(BaseExerciseTracker):
 
                 self.state = "EXTENDED"
                 self.min_angle_in_rep = 180.0
+                self.curled_arm = None
             else:
                 if is_good_form:
                     feedback_list.append("Lower Arms")
@@ -123,7 +173,7 @@ class BicepCurlTracker(BaseExerciseTracker):
 
         return self.build_result(
             self.state,
-            primary_angle=avg_elbow_angle,
+            primary_angle=active_elbow_angle,
             feedback=feedback_list,
             valid=True,
             feedback_code=fb_code,
