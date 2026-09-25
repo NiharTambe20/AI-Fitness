@@ -71,7 +71,7 @@ const EXERCISE_DEFAULT_PRESCRIPTIONS = {
 var API_BASE = window.getFitQuestApiBase ? window.getFitQuestApiBase() : (window.API_BASE || 'https://fitquest-backend-1brv.onrender.com/api/v1');
 // Dedicated Computer Vision & Pose Telemetry Engine Base (Modal ML Microservice)
 // Separated from main application backend to ensure heavy webcam frame streams route directly to Modal
-const ML_API_BASE = window.getFitQuestMlBase ? window.getFitQuestMlBase() : (window.ML_API_BASE || 'https://nihartambe20--fitquest-ml-fastapi-app-dev.modal.run');
+const ML_API_BASE = window.getFitQuestMlBase ? window.getFitQuestMlBase() : (window.ML_API_BASE || 'https://nihartambe20--fitquest-ml-fastapi-app.modal.run');
 
 document.addEventListener('DOMContentLoaded', () => {
   initTabNavigation();

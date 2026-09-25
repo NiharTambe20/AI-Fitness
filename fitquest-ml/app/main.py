@@ -34,6 +34,10 @@ _DEFAULT_ORIGINS = [
     "http://127.0.0.1:5173",
     "http://127.0.0.1:8000",
     "http://127.0.0.1:8100",
+    "https://ai-fitness-i18hx47gt-ai-fitness2.vercel.app",
+    "https://ai-fitness2.vercel.app",
+    "https://ai-fitness-ai-fitness2.vercel.app",
+    "https://ai-fitness-git-migration-multi-service-architecture-ai-fitness2.vercel.app",
 ]
 
 def _get_allowed_origins() -> List[str]:
@@ -50,6 +54,7 @@ def _get_allowed_origins() -> List[str]:
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_get_allowed_origins(),
+    allow_origin_regex=r"^https://.*\.vercel\.app$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

@@ -22,7 +22,7 @@
 
   // Production Endpoints
   var PRODUCTION_BACKEND_URL = 'https://fitquest-backend-1brv.onrender.com/api/v1';
-  var PRODUCTION_MODAL_ML_URL = 'https://nihartambe20--fitquest-ml-fastapi-app-dev.modal.run';
+  var PRODUCTION_MODAL_ML_URL = 'https://nihartambe20--fitquest-ml-fastapi-app.modal.run';
 
   // Local Development Endpoints
   var LOCAL_BACKEND_URL = 'http://127.0.0.1:8000/api/v1';

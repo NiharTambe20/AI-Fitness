@@ -14,7 +14,11 @@ DEFAULT_CORS_ORIGINS = [
     "http://127.0.0.1:5173",
     "http://127.0.0.1:5500",
     "http://127.0.0.1:8000",
-    "http://127.0.0.1:8080"
+    "http://127.0.0.1:8080",
+    "https://ai-fitness-i18hx47gt-ai-fitness2.vercel.app",
+    "https://ai-fitness2.vercel.app",
+    "https://ai-fitness-ai-fitness2.vercel.app",
+    "https://ai-fitness-git-migration-multi-service-architecture-ai-fitness2.vercel.app"
 ]
 
 class Settings(BaseSettings):
@@ -45,6 +49,7 @@ class Settings(BaseSettings):
 
     # CORS Configuration: Supports comma-separated string or list from environment
     CORS_ORIGINS: Union[list[str], str] = DEFAULT_CORS_ORIGINS
+    CORS_ORIGIN_REGEX: Optional[str] = r"^https://.*\.vercel\.app$"
 
     @field_validator("CORS_ORIGINS", mode="before")
     @classmethod
