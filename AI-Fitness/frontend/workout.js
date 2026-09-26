@@ -13,6 +13,10 @@ let workoutElapsedSeconds = 0;
 // Live CV & Camera State
 let webcamStream = null;
 let frameCaptureInterval = null;
+let frameCount = 0;
+let isProcessingFrame = false;
+let animationFrameId = null;
+const FRAME_SKIP_RATIO = 2; // Process every 2nd frame (~15 FPS inference, cutting compute load in half)
 let workoutSocket = null;
 let activeSessionId = null;
 let currentRepCount = 0;
@@ -301,7 +305,7 @@ function initTabNavigation() {
 function switchTab(viewId) {
   // If navigating away from Workout view, safely stop camera & frame loops without modifying workout state
   if (viewId !== 'workoutView') {
-    if (webcamStream || frameCaptureInterval) {
+    if (webcamStream || frameCaptureInterval || animationFrameId) {
       stopCameraStream();
     }
     prepareCalibrationActive = false;
@@ -1156,10 +1160,17 @@ async function startCameraStream() {
 
   try {
     if (!webcamStream || !webcamStream.active) {
-      webcamStream = await navigator.mediaDevices.getUserMedia({
-        video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: 'user' },
+      // 1. Explicitly cap webcam resolution to 640x480 (480p) to eliminate resizing & memory bandwidth waste
+      const constraints = {
+        video: {
+          width: { ideal: 640, max: 640 },
+          height: { ideal: 480, max: 480 },
+          facingMode: 'user',
+          frameRate: { ideal: 30, max: 30 }
+        },
         audio: false
-      });
+      };
+      webcamStream = await navigator.mediaDevices.getUserMedia(constraints);
     }
 
     const applyAspect = (vEl) => {
@@ -1205,48 +1216,136 @@ async function startCameraStream() {
 
 /**
  * Transmits video frames to backend CV Engine via HTTP / WebSocket
+ * Features frame skipping (~15 FPS inference), concurrency throttling, and optimized canvas rendering
  */
 function startFrameTransmission() {
   const video = document.getElementById('webcamFeed');
   const canvas = document.getElementById('frameCanvas');
   const overlay = document.getElementById('overlayImage');
-  const ctx = canvas ? canvas.getContext('2d') : null;
+  const ctx = canvas ? canvas.getContext('2d', { willReadFrequently: true }) : null;
 
-  if (frameCaptureInterval) clearInterval(frameCaptureInterval);
+  if (animationFrameId) {
+    cancelAnimationFrame(animationFrameId);
+    animationFrameId = null;
+  }
+  if (frameCaptureInterval) {
+    clearInterval(frameCaptureInterval);
+    frameCaptureInterval = null;
+  }
 
-  // Send frame every 120ms (~8-10 FPS)
-  frameCaptureInterval = setInterval(async () => {
-    if (!video || video.paused || video.ended || !video.videoWidth) return;
+  frameCount = 0;
+  isProcessingFrame = false;
 
-    canvas.width = video.videoWidth || 640;
-    canvas.height = video.videoHeight || 480;
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+  // Enable performance mode on demo avatar to lower canvas overhead during active workouts
+  if (demoAvatarEngine && typeof demoAvatarEngine.setPerformanceMode === 'function') {
+    demoAvatarEngine.setPerformanceMode(true);
+  }
 
-    const base64Frame = canvas.toDataURL('image/jpeg', 0.6);
+  // 2. Optimized video processing loop with frame skipping (process every 2nd frame ~15 FPS)
+  function processVideoLoop() {
+    const hasStream = webcamStream && webcamStream.active;
+    const hasVideo = video && !video.paused && !video.ended && (video.srcObject || video.src);
+    if (!hasStream && !hasVideo) return;
 
-    try {
-      const payload = {
-        session_id: activeSessionId,
-        exercise_choice: String(selectedExercise.id),
-        frame_data: base64Frame,
-        include_annotated_image: true
-      };
+    frameCount++;
 
-      const res = await fetch(`${API_BASE}/workouts/live/process-frame`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-
-      if (!res.ok) return;
-
-      const telemetry = await res.json();
-      updateHUDTelemetry(telemetry, overlay);
-
-    } catch (err) {
-      console.error('[FitQuest Frame Processing Error]:', err);
+    // Run inference only on even frames (cutting compute and network load in half)
+    if (frameCount % FRAME_SKIP_RATIO === 0) {
+      if (!isProcessingFrame && video && !video.paused && !video.ended && video.videoWidth) {
+        runYoloInference(video, canvas, ctx, overlay);
+      }
     }
-  }, 120);
+
+    animationFrameId = requestAnimationFrame(processVideoLoop);
+  }
+
+  animationFrameId = requestAnimationFrame(processVideoLoop);
+}
+
+/**
+ * Loads a local video file (MP4, WebM, MOV) as a synthetic camera feed
+ * Allows seamless testing on desktop machines that do not have physical webcams
+ */
+function handleWorkoutVideoUpload(event) {
+  const file = event.target.files && event.target.files[0];
+  if (!file) return;
+
+  const video = document.getElementById('webcamFeed');
+  const overlay = document.getElementById('overlayImage');
+  const placeholder = document.getElementById('cameraPlaceholder');
+
+  // Stop any active hardware webcam stream
+  if (webcamStream) {
+    webcamStream.getTracks().forEach((track) => {
+      try { track.stop(); } catch (e) {}
+    });
+    webcamStream = null;
+  }
+
+  video.srcObject = null;
+  video.src = URL.createObjectURL(file);
+  video.loop = true;
+  video.muted = true;
+  video.style.display = 'block';
+  if (overlay) overlay.style.display = 'block';
+  if (placeholder) placeholder.style.display = 'none';
+
+  video.onloadeddata = () => {
+    video.play().then(() => {
+      startFrameTransmission();
+    }).catch(e => console.warn('[FitQuest Video Autoplay Warning]:', e));
+  };
+}
+window.handleWorkoutVideoUpload = handleWorkoutVideoUpload;
+
+/**
+ * Executes a single throttled YOLO pose estimation inference call
+ * Guarded against overlapping requests and optimized to eliminate canvas GC pressure
+ */
+async function runYoloInference(video, canvas, ctx, overlay) {
+  if (isProcessingFrame) return; // Concurrency guard: never pile up requests if backend takes > frame interval
+  isProcessingFrame = true;
+
+  try {
+    const targetW = 640;
+    const targetH = 480;
+
+    // 3. Canvas size optimization: only resize if dimensions changed to eliminate GC pressure
+    if (canvas.width !== targetW || canvas.height !== targetH) {
+      canvas.width = targetW;
+      canvas.height = targetH;
+    }
+
+    // Turn off expensive shadow/blur effects on canvas context during active workouts
+    ctx.shadowBlur = 0;
+    ctx.shadowColor = 'transparent';
+    ctx.drawImage(video, 0, 0, targetW, targetH);
+
+    const base64Frame = canvas.toDataURL('image/jpeg', 0.55);
+
+    const payload = {
+      session_id: activeSessionId,
+      exercise_choice: String(selectedExercise.id),
+      frame_data: base64Frame,
+      include_annotated_image: true
+    };
+
+    const res = await fetch(`${API_BASE}/workouts/live/process-frame`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    if (!res.ok) return;
+
+    const telemetry = await res.json();
+    updateHUDTelemetry(telemetry, overlay);
+
+  } catch (err) {
+    console.error('[FitQuest Frame Processing Error]:', err);
+  } finally {
+    isProcessingFrame = false;
+  }
 }
 
 /**
@@ -1430,9 +1529,20 @@ function updateHUDTelemetry(telemetry, overlayElement) {
  * Stops camera stream cleanly and releases webcam hardware
  */
 function stopCameraStream() {
+  if (animationFrameId) {
+    cancelAnimationFrame(animationFrameId);
+    animationFrameId = null;
+  }
   if (frameCaptureInterval) {
     clearInterval(frameCaptureInterval);
     frameCaptureInterval = null;
+  }
+  isProcessingFrame = false;
+  frameCount = 0;
+
+  // Restore demo avatar glow when camera/workout is idle
+  if (demoAvatarEngine && typeof demoAvatarEngine.setPerformanceMode === 'function') {
+    demoAvatarEngine.setPerformanceMode(false);
   }
 
   if (webcamStream) {
@@ -2512,10 +2622,15 @@ async function handleSingleExerciseSetComplete() {
   }
 
   // 1. Pause frame transmission during rest/transition
+  if (animationFrameId) {
+    cancelAnimationFrame(animationFrameId);
+    animationFrameId = null;
+  }
   if (frameCaptureInterval) {
     clearInterval(frameCaptureInterval);
     frameCaptureInterval = null;
   }
+  isProcessingFrame = false;
 
   // 2. Log completed set in local state
   const completedSetNum = activeWorkoutSetsState.currentSetNumber;
@@ -2575,10 +2690,15 @@ function handleManualSetComplete() {
  */
 function startSingleExerciseRestTimer(seconds, completedSetNum, nextLabel) {
   // Pause frame transmission
+  if (animationFrameId) {
+    cancelAnimationFrame(animationFrameId);
+    animationFrameId = null;
+  }
   if (frameCaptureInterval) {
     clearInterval(frameCaptureInterval);
     frameCaptureInterval = null;
   }
+  isProcessingFrame = false;
 
   restTimeRemaining = seconds;
 
@@ -2676,10 +2796,15 @@ async function launchNextSingleExerciseSet() {
  */
 function startRestTimer(seconds, nextLabel) {
   // Pause frame transmission during rest
+  if (animationFrameId) {
+    cancelAnimationFrame(animationFrameId);
+    animationFrameId = null;
+  }
   if (frameCaptureInterval) {
     clearInterval(frameCaptureInterval);
     frameCaptureInterval = null;
   }
+  isProcessingFrame = false;
 
   restTimeRemaining = seconds;
   document.getElementById('restNextExerciseLabel').innerText = nextLabel;
@@ -2782,6 +2907,34 @@ function renderStructuredSummaryView(summary) {
   }
 }
 
+/**
+ * 5. Hardware-Accelerated WebGL/WebGPU ONNX Runtime Web Session Initializer
+ * Enables client GPU execution provider to offload tensor math from CPU.
+ */
+async function createHardwareAcceleratedSession(modelPath = 'models/yolov8n-pose.onnx') {
+  if (typeof ort === 'undefined') {
+    return null;
+  }
+  try {
+    const executionProviders = [];
+    if (typeof navigator !== 'undefined' && 'gpu' in navigator) {
+      executionProviders.push('webgpu');
+    }
+    executionProviders.push('webgl');
+    executionProviders.push('wasm');
+
+    const session = await ort.InferenceSession.create(modelPath, {
+      executionProviders: executionProviders,
+      graphOptimizationLevel: 'all'
+    });
+    console.log('[FitQuest WebGL Acceleration] Active execution providers:', session.executionProviders || executionProviders);
+    return session;
+  } catch (err) {
+    console.warn('[FitQuest WebGL Acceleration Warning]: WebGL session initialization failed:', err);
+    return null;
+  }
+}
+
 // Export UI functions to window object
 window.switchWorkoutMode = switchWorkoutMode;
 window.openStructuredPlanModal = openStructuredPlanModal;
@@ -2793,11 +2946,12 @@ window.addRestTime = addRestTime;
 window.handleSingleExerciseSetComplete = handleSingleExerciseSetComplete;
 window.resolveExercisePrescription = resolveExercisePrescription;
 window.stopCameraStream = stopCameraStream;
+window.createHardwareAcceleratedSession = createHardwareAcceleratedSession;
 
 // Page Visibility Safety: Stop active camera tracks if browser tab/window is hidden
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) {
-    if (webcamStream || frameCaptureInterval) {
+    if (webcamStream || frameCaptureInterval || animationFrameId) {
       stopCameraStream();
     }
   }

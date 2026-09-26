@@ -1097,8 +1097,16 @@
       this.muscleTagEl = (card && card.querySelector('[title="Target Muscle Group"] span')) || document.getElementById('demoMuscleTag') || document.getElementById('learnDemoMuscleTag');
       this.jointTagEl = (card && card.querySelector('[title="Primary Joint Action"] span')) || document.getElementById('demoJointTag') || document.getElementById('learnDemoJointTag');
       this.playPauseBtn = (card && card.querySelector('.demo-ctrl-btn')) || document.getElementById('demoPlayPauseBtn') || document.getElementById('learnDemoPlayPauseBtn');
+      this.lowOverheadMode = false; // High-performance mode: turns off expensive canvas shadow/blur filters during active workouts
 
       this.initResizeObserver();
+    }
+
+    /**
+     * Toggles low overhead canvas mode (disables expensive shadowBlur during active camera tracking)
+     */
+    setPerformanceMode(enabled = true) {
+      this.lowOverheadMode = !!enabled;
     }
 
     initResizeObserver() {
@@ -1314,8 +1322,12 @@
       ctx.strokeStyle = torsoGlowColor;
       ctx.lineWidth = 5.5 * scale;
       ctx.lineCap = 'round';
-      ctx.shadowColor = 'rgba(0, 240, 255, 0.6)';
-      ctx.shadowBlur = 12;
+      if (!this.lowOverheadMode) {
+        ctx.shadowColor = 'rgba(0, 240, 255, 0.6)';
+        ctx.shadowBlur = 12;
+      } else {
+        ctx.shadowBlur = 0;
+      }
       ctx.beginPath();
       ctx.moveTo(neck.x, neck.y);
       ctx.lineTo(hip.x, hip.y);
@@ -1362,9 +1374,11 @@
         if (!pt) return;
         const s = toScreen(pt);
         ctx.save();
-        if (glow) {
+        if (glow && !this.lowOverheadMode) {
           ctx.shadowColor = jointGlowColor;
           ctx.shadowBlur = 10;
+        } else {
+          ctx.shadowBlur = 0;
         }
         ctx.fillStyle = '#ffffff';
         ctx.beginPath();
@@ -1389,8 +1403,12 @@
       // 4. Draw Head / Visor
       const head = toScreen(pose.head);
       ctx.save();
-      ctx.shadowColor = 'rgba(204, 255, 0, 0.7)';
-      ctx.shadowBlur = 14;
+      if (!this.lowOverheadMode) {
+        ctx.shadowColor = 'rgba(204, 255, 0, 0.7)';
+        ctx.shadowBlur = 14;
+      } else {
+        ctx.shadowBlur = 0;
+      }
       ctx.fillStyle = headColor;
       ctx.beginPath();
       ctx.arc(head.x, head.y, 9.5 * scale, 0, TWO_PI);
@@ -1414,8 +1432,12 @@
         ctx.save();
         ctx.fillStyle = '#ccff00';
         ctx.font = `bold ${Math.max(11, Math.round(12 * scale))}px Outfit, Inter, sans-serif`;
-        ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
-        ctx.shadowBlur = 6;
+        if (!this.lowOverheadMode) {
+          ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
+          ctx.shadowBlur = 6;
+        } else {
+          ctx.shadowBlur = 0;
+        }
         ctx.fillText(pose.targetAngle.label, jointPos.x + 10 * scale, jointPos.y - 8 * scale);
         ctx.restore();
       }

@@ -28,8 +28,23 @@ class PoseDetector:
         
         if not os.path.exists("models"):
             os.makedirs("models")
-            
-        print(f"[INFO] Initializing YOLO Pose model...")
+
+        # Enable OpenCV hardware instruction optimization
+        cv2.setUseOptimized(True)
+
+        # Detect hardware execution device (CUDA GPU, Apple MPS, or CPU)
+        try:
+            import torch
+            if torch.cuda.is_available():
+                self.device = "cuda"
+            elif hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
+                self.device = "mps"
+            else:
+                self.device = "cpu"
+        except Exception:
+            self.device = "cpu"
+
+        print(f"[INFO] Initializing YOLO Pose Nano model on device '{self.device}'...")
         if not os.path.exists(model_path):
             print(f"[INFO] Pretrained weights not found at {model_path}. Loading yolov8n-pose.pt...")
             self.model = YOLO("yolov8n-pose.pt")
@@ -37,11 +52,17 @@ class PoseDetector:
             print(f"[INFO] Saved pretrained weights to {model_path}")
         else:
             self.model = YOLO(model_path)
-            
-        print("[INFO] YOLO Pose model loaded successfully.")
+
+        try:
+            self.model.to(self.device)
+        except Exception:
+            pass
+
+        print(f"[INFO] YOLO Pose model loaded successfully on {self.device}.")
 
     def process_frame(self, frame, tracker=None, draw_debug_hud=False, clean_overlay=True):
-        results = self.model(frame, verbose=False)
+        # Explicitly process at 480p to match webcam feed and maximize throughput
+        results = self.model(frame, imgsz=480, device=self.device, verbose=False)
         if clean_overlay:
             # Clean, subtle skeleton: omit bounding boxes, class labels, and confidence numbers
             try:

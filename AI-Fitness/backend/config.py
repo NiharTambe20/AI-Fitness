@@ -41,7 +41,7 @@ class Settings(BaseSettings):
     SMTP_PASSWORD: Optional[str] = None
     EMAIL_FROM: Optional[str] = None
     FITQUEST_FRONTEND_URL: str = "http://127.0.0.1:8080"
-    FITQUEST_SECRET_KEY: Optional[str] = None
+    FITQUEST_SECRET_KEY: Optional[str] = "3a87330a5a7ec4fbc4cc984057a11894253f2a59a9664249c969d739ef47ea76"
 
     # CORS Configuration: Supports comma-separated string or list from environment
     CORS_ORIGINS: Union[list[str], str] = DEFAULT_CORS_ORIGINS
@@ -64,7 +64,10 @@ class Settings(BaseSettings):
         return origins
 
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=(
+            os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), ".env"),
+            ".env"
+        ),
         env_file_encoding="utf-8",
         extra="ignore"
     )
