@@ -320,6 +320,14 @@ async function checkPersistentSession() {
   }
 }
 
+function safeSwitchTab(viewId) {
+  if (typeof switchTab === 'function') {
+    switchTab(viewId);
+  } else if (typeof window !== 'undefined' && typeof window.switchTab === 'function') {
+    window.switchTab(viewId);
+  }
+}
+
 /**
  * Handles successful login or registration
  */
@@ -329,7 +337,7 @@ function handleAuthSuccess(authData) {
   localStorage.setItem('fitquest_token', authToken);
 
   showAuthenticatedState();
-  switchTab('homeView');
+  safeSwitchTab('homeView');
 }
 
 /**
@@ -374,7 +382,7 @@ function showAuthenticatedState() {
   // If coming from login, default to home view if active view is authView
   const currentActivePanel = document.querySelector('.view-panel.active');
   if (!currentActivePanel || currentActivePanel.id === 'authView') {
-    switchTab('homeView');
+    safeSwitchTab('homeView');
   } else {
     // Reload user-specific history if currently on historyView
     if (currentActivePanel.id === 'historyView' && typeof loadWorkoutHistory === 'function') {
@@ -604,7 +612,7 @@ function renderProfilePage() {
  * Opens My Profile tab directly from header dropdown
  */
 function openProfileTab() {
-  switchTab('profileView');
+  safeSwitchTab('profileView');
 }
 
 /**

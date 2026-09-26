@@ -1221,8 +1221,6 @@ async function startCameraStream() {
  * Transmits video frames to backend CV Engine via HTTP / WebSocket
  * Features frame skipping (~15 FPS inference), concurrency throttling, and optimized canvas rendering
  */
-let isProcessingFrame = false;
-
 function startFrameTransmission() {
   const video = document.getElementById('webcamFeed');
   const canvas = document.getElementById('frameCanvas');
@@ -2943,6 +2941,7 @@ async function createHardwareAcceleratedSession(modelPath = 'models/yolov8n-pose
 }
 
 // Export UI functions to window object
+window.switchTab = switchTab;
 window.switchWorkoutMode = switchWorkoutMode;
 window.openStructuredPlanModal = openStructuredPlanModal;
 window.closeStructuredPlanModal = closeStructuredPlanModal;
