@@ -68,9 +68,7 @@
       }
       return window.ML_API_BASE;
     }
-    return isLocalDev
-      ? (window.USE_LOCAL_ML ? LOCAL_MODAL_ML_URL : PRODUCTION_MODAL_ML_URL)
-      : PRODUCTION_MODAL_ML_URL;
+    return isLocalDev ? LOCAL_BACKEND_URL : PRODUCTION_MODAL_ML_URL;
   }
 
   // Assign to window object

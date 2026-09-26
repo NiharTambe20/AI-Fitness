@@ -89,6 +89,15 @@ class PushUpTracker(BaseExerciseTracker):
             is_r_knee_horiz, _ = check_body_orientation(keypoints, "right_shoulder", "right_knee", self.max_inclination_deg)
             is_horizontal_posture = is_l_knee_horiz or is_r_knee_horiz
 
+        # Frontal / Diagonal Perspective Fallback:
+        # When viewed from front or 3/4 angle, perspective foreshortens the torso in 2D.
+        # If wrists are below shoulders (hands on ground), treat as a valid horizontal posture.
+        if not is_horizontal_posture:
+            left_arm_down = left_valid and (keypoints["left_wrist"][1] >= keypoints["left_shoulder"][1] - 15)
+            right_arm_down = right_valid and (keypoints["right_wrist"][1] >= keypoints["right_shoulder"][1] - 15)
+            if left_arm_down or right_arm_down:
+                is_horizontal_posture = True
+
         avg_elbow_angle = float(np.mean(elbow_angles))
 
         # ----------------------------------------------------

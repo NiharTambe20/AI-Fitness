@@ -1161,6 +1161,18 @@ async function startCameraStream() {
   const placeholder = document.getElementById('cameraPlaceholder');
   const notice = document.getElementById('cameraNoticeText');
 
+  // If a synthetic video file is already loaded, stream it directly without requesting hardware webcam
+  if (video && !video.srcObject && video.src) {
+    if (overlay) overlay.style.display = 'block';
+    if (placeholder) placeholder.style.display = 'none';
+    video.style.display = 'block';
+    if (video.paused) {
+      video.play().catch(e => console.warn(e));
+    }
+    startFrameTransmission();
+    return;
+  }
+
   try {
     if (!webcamStream || !webcamStream.active) {
       // 1. Explicitly cap webcam resolution to 640x480 (480p) to eliminate resizing & memory bandwidth waste
@@ -1521,6 +1533,7 @@ function updateHUDTelemetry(telemetry, overlayElement) {
 
   if (telemetry.annotated_frame && overlayElement) {
     overlayElement.src = telemetry.annotated_frame;
+    overlayElement.style.display = 'block';
   }
 
   // Feed real-time telemetry into Movement Copilot (Phase 5)
