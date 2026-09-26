@@ -14,6 +14,9 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   
   <link rel="stylesheet" href="style.css">
+  
+  <!-- FitQuest Centralized API & Environment Configuration -->
+  <script src="config.js"></script>
 </head>
 <body>
   <!-- FITQUEST PREMIUM PUBLIC LANDING PAGE -->
@@ -3653,31 +3656,26 @@
   <!-- Chart.js Library for Progress Analytics Charts -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-<!-- Global API Config (Auto-detects localhost vs cloud deployment) -->
-    <script>
-      const isLocalHost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.port !== '';
-      window.API_BASE = isLocalHost
-        ? `${window.location.origin}/api/v1`
-        : 'https://saish-patil03--fitquest-backend-serve.modal.run/api/v1';
-    </script>
+  <!-- FitQuest Centralized API & Environment Configuration -->
+  <script src="config.js"></script>
 
-    <script src="landing.js"></script>
-    <script src="auth.js"></script>
-    <script src="gamification.js"></script>
-    <script src="progress.js"></script>
-    <script src="goals.js"></script>
-    <script src="readiness.js"></script>
-    <script src="training_load.js"></script>
-    <script src="app.js"></script>
-    <script src="exercise_demo.js"></script>
-    <script src="movement_evolution.js"></script>
-    <script src="adaptive_training.js"></script>
-    <script src="movement_dna.js"></script>
-    <script src="movement_copilot.js"></script>
-    <script src="workout.js"></script>
-    <script src="nutrition.js"></script>
-    <script src="fitquest_guide.js"></script>
-    <script src="reports.js"></script>
-    <script src="leaderboard.js"></script>
-  </body>
+  <script src="landing.js"></script>
+  <script src="auth.js"></script>
+  <script src="gamification.js"></script>
+  <script src="progress.js"></script>
+  <script src="goals.js"></script>
+  <script src="readiness.js"></script>
+  <script src="training_load.js"></script>
+  <script src="app.js"></script>
+  <script src="exercise_demo.js"></script>
+  <script src="movement_evolution.js"></script>
+  <script src="adaptive_training.js"></script>
+  <script src="movement_dna.js"></script>
+  <script src="movement_copilot.js"></script>
+  <script src="workout.js"></script>
+  <script src="nutrition.js"></script>
+  <script src="fitquest_guide.js"></script>
+  <script src="reports.js"></script>
+  <script src="leaderboard.js"></script>
+</body>
 </html>

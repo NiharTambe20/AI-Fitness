@@ -62,17 +62,39 @@ def get_db():
     finally:
         db.close()
 
+# 20 default registered exercises decoupled from CV ExerciseRegistry
+DEFAULT_EXERCISES = [
+    ("1", "Bicep Curl"),
+    ("2", "Squat"),
+    ("3", "Push-up"),
+    ("4", "Lunges"),
+    ("5", "Shoulder Press"),
+    ("6", "Jumping Jacks"),
+    ("7", "High Knees"),
+    ("8", "Mountain Climbers"),
+    ("9", "Plank"),
+    ("10", "Glute Bridge"),
+    ("11", "Sit-ups"),
+    ("12", "Crunches"),
+    ("13", "Leg Raises"),
+    ("14", "Russian Twists"),
+    ("15", "Bicycle Crunches"),
+    ("16", "Side Lunges"),
+    ("17", "Calf Raises"),
+    ("18", "Front Raises"),
+    ("19", "Lateral Raises"),
+    ("20", "Tricep Extensions"),
+]
+
 def seed_exercises(db):
     """
-    Idempotently seeds the 20 exercises from Member 3 ExerciseRegistry into the exercises table.
+    Idempotently seeds the 20 exercises into the exercises table.
     """
-    from exercises import ExerciseRegistry
     from backend.models.exercise import ExerciseModel
 
-    registered_exercises = ExerciseRegistry.list_exercises()
     seeded_count = 0
 
-    for key, name in registered_exercises:
+    for key, name in DEFAULT_EXERCISES:
         existing = db.query(ExerciseModel).filter(ExerciseModel.name == name).first()
         if not existing:
             exercise = ExerciseModel(

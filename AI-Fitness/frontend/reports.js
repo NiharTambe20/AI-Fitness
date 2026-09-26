@@ -6,6 +6,10 @@
 
 let currentReportPeriod = null;
 
+function getReportsApiBase() {
+  return window.getFitQuestApiBase ? window.getFitQuestApiBase() : (window.API_BASE || 'https://fitquest-backend-1brv.onrender.com/api/v1');
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   // If user is already authenticated, load initial report availability
   if (typeof authToken !== 'undefined' && authToken) {
@@ -30,7 +34,7 @@ async function loadProgressReports() {
     return;
   }
 
-  const apiBase = window.API_BASE || 'http://127.0.0.1:8000/api/v1';
+  const apiBase = getReportsApiBase();
 
   try {
     const res = await fetch(`${apiBase}/reports/available`, {
@@ -135,7 +139,7 @@ async function openReportPreview(periodDays) {
     </div>
   `;
 
-  const apiBase = window.API_BASE || 'http://127.0.0.1:8000/api/v1';
+  const apiBase = getReportsApiBase();
 
   try {
     const res = await fetch(`${apiBase}/reports/${periodDays}`, {
@@ -413,7 +417,7 @@ async function downloadReportPdf(periodDays) {
     modalBtn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Generating PDF...';
   }
 
-  const apiBase = window.API_BASE || 'http://127.0.0.1:8000/api/v1';
+  const apiBase = getReportsApiBase();
 
   try {
     const response = await fetch(`${apiBase}/reports/${period}/pdf`, {
